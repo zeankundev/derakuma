@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",                  // Ensures compatibility with modern Node environments
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",                    // Where you write your source TS
+    "outDir": "./dist",                    // Where compiled JS and types will go
+    "declaration": true,                   // CRITICAL: Automatically generates .d.ts files
+    "declarationMap": true,                // Maps type definitions back to source code
+    "sourceMap": true,                     // Maps compiled JS back to source code
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
+}
