@@ -227,7 +227,7 @@ export class DerakumaParser {
             }
 
             const eq = line.indexOf('=');
-            if (eq !== -1) continue;
+            if (eq === -1) continue;
             const key = `${currentSection}.${line.slice(0, eq).trim()}`;
             const value = line.slice(eq + 1).trim();
             (header[key] ??= []).push(value);

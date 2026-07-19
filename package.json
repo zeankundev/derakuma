@@ -1,6 +1,7 @@
 {
   "name": "derakuma",
   "version": "0.5.0",
+  "private": false,
   "description": "a Fontobene parser for Typescript",
   "keywords": [
     "fontobene",
@@ -19,7 +20,8 @@
   "license": "MIT",
   "author": "zeankun <zeanfender11@gmail.com>",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
