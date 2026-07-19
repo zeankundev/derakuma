@@ -1,6 +1,6 @@
 {
   "name": "derakuma",
-  "version": "0.5.1",
+  "version": "0.5.3",
   "private": false,
   "description": "a Fontobene parser for Typescript",
   "keywords": [
@@ -22,13 +22,22 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "browser": "dist/web.min.js",
+  "unpkg": "dist/web.min.js",
+  "jsdelivr": "dist/web.min.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "tsc"
+    "build": "npm run build:node && npm run build:web",
+    "build:node": "tsc -p tsconfig.json",
+    "build:web": "tsc -p tsconfig.web.json && esbuild dist/web.js --minify --outfile=dist/web.min.js"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
+    "esbuild": "^0.25.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
