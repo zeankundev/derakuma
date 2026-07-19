@@ -27,22 +27,23 @@ const glyph = font.getGlyph('a');
 
 // Assuming you're in Electron
 const ctx = document.getElementById('canvas').getContext('2d');
-const startX = 100;
-const startY = 100;
 const scale = 2;
+const initialX = 10;
+const initialY = 30;
 
+ctx.lineWidth = 1;
+ctx.strokeStyle = "#000";
 ctx.beginPath();
-for (const cmd of glyph) {
-  const drawX = startX + (cmd.x * scale);
-  const drawY = startY - (cmd.y * scale);
-  if (cmd.command === 'PD') {
-    ctx.moveTo(drawX, drawY);
-  } else if (cmd.command === 'MP') {
-    ctx.lineTo(drawX, drawY);
-  } else if (cmd.command === 'PU') {
-    ctx.moveTo(drawX, drawY);
+
+for (const charObj of glyphs) {
+  for (const cmd of charObj.commands) {
+    const drawX = initialX + (charObj.x + cmd.x) * scale;
+    const drawY = initialY - cmd.y * scale;
+    if (cmd.command === "PD") ctx.moveTo(drawX, drawY);
+    else if (cmd.command === "MP") ctx.lineTo(drawX, drawY);
   }
 }
+ctx.stroke();
 ```
 
 # A (more) detailed documentation
