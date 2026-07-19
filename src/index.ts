@@ -65,7 +65,7 @@ export class DerakumaParser {
     private glyphs = new Map<string, Glyph>();
     private loadPromiseFunc: Promise<void>;
 
-    private async fetchBeneFile(url: string, method: FontLoadMethod): Promise<string> {
+    private async fetchBeneFile(url: string, method: FontLoadMethod | string): Promise<string> {
         const hasFetch = typeof fetch === 'function';
         let fetchError: Error | null = null;
 
@@ -275,7 +275,7 @@ export class DerakumaParser {
         }
     }
 
-    private async load(source: string, loadMethod: FontLoadMethod): Promise<void> {
+    private async load(source: string, loadMethod: FontLoadMethod | string): Promise<void> {
         const rawContent = await this.fetchBeneFile(source, loadMethod);
         this.parseBene(rawContent);
     }
@@ -317,7 +317,7 @@ export class DerakumaParser {
      * @param source A path to a .bene file
      * @param loadMethod (optional) The method to load the .bene file. Defaults to 'fetch'. For local Node/Bun, use 'file'.
      */
-    constructor(source: string, loadMethod: FontLoadMethod = FontLoadMethod.FETCH) {
+    constructor(source: string, loadMethod: FontLoadMethod | string = FontLoadMethod.FETCH) {
         this.loadPromiseFunc = this.load(source, loadMethod);
     }
     
