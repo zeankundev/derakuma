@@ -67,6 +67,7 @@ export class DerakumaParser {
     }
     private glyphs = new Map<string, Glyph>();
     private loadPromiseFunc: Promise<void>;
+    private fallbackGlyphCache: Glyph | null = null;
 
     private async fetchBeneFile(url: string, method: FontLoadMethod | string, encoding: string = 'utf-8'): Promise<string> {
         const hasFetch = typeof fetch === 'function';
@@ -208,6 +209,37 @@ export class DerakumaParser {
         };
     }
 
+    private buildFallbackGlyph(): Glyph {
+        if (this.fallbackGlyphCache) return this.fallbackGlyphCache;
+
+        const height = this.metadata.lineSpacing > 0 ? this.metadata.lineSpacing : 9;
+        const width = this.metadata.monospaceWidth ?? height * 0.6;
+
+        const inset = Math.min(width, height) * 0.1;
+        const x0 = inset;
+        const x1 = Math.max(width - inset, x0 + 0.001);
+        const y0 = inset;
+        const y1 = Math.max(height - inset, y0 + 0.001);
+
+        const box: RawVector2[] = [
+            { x: x0, y: y0 },
+            { x: x1, y: y0 },
+            { x: x1, y: y1 },
+            { x: x0, y: y1 },
+            { x: x0, y: y0 },
+        ];
+        const crossA: RawVector2[] = [{ x: x0, y: y0 }, { x: x1, y: y1 }];
+        const crossB: RawVector2[] = [{ x: x0, y: y1 }, { x: x1, y: y0 }];
+
+        this.fallbackGlyphCache = this.resolveGlyph({
+            codepoint: 'NOTDEF',
+            char: undefined,
+            polylines: [box, crossA, crossB],
+            whitespace: 1,
+        });
+        return this.fallbackGlyphCache;
+    }
+
     private applyHeader(header: Record<string, string[]>): void {
         const get = (k: string) => header[k]?.[0];
         this.metadata = {
@@ -225,6 +257,7 @@ export class DerakumaParser {
     }
 
     private parseBene(rawContent: string): void {
+        this.fallbackGlyphCache = null;
         const lines = rawContent.split(/\r\n|\r|\n/);
         let i = 0;
         const header: Record<string, string[]> = {};
@@ -291,6 +324,7 @@ export class DerakumaParser {
             const points = this.parsePolylineLine(line);
             if (points.length) current.polylines.push(points);
         }
+        commit(); // the last glyph in the file never hits the "next header" branch above
         this.isInitialized = true;
     }
 
@@ -359,7 +393,8 @@ export class DerakumaParser {
 
     /**
      * @param character Either a single character (e.g. "A"), a Unicode codepoint (e.g. "0041"), or a hex codepoint (e.g. 0x41).
-     * @returns Pen commands to be used. One PD/PU pair per glyph. Empty if not found or undefined.
+     * @returns Pen commands to be used. One PD/PU pair per glyph. If the character isn't in the font,
+     * this draws U+FFFD (if defined) or a synthesized "missing glyph" box instead of coming back empty.
      */
     getGlyph(character: string | number): PenCommand[] {
         const glyph = this.getGlyphData(character);
@@ -369,15 +404,35 @@ export class DerakumaParser {
 
     /**
      * Same as {@link getGlyph} but actually returns the resolved glyph data rather than pen commands.
+     * @param useFallback (default true) If the character isn't found, it will return U+FFFD.
+     * If U+FFFD isn't defined, it will return a synthesized "missing glyph" box. If false, it will return undefined instead.
+     * @returns The glyph data for the character, or undefined if not found and useFallback is false.
      */
-    getGlyphData(character: string | number): Glyph | undefined {
+    getGlyphData(character: string | number, useFallback: boolean = true): Glyph | undefined {
         if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         const key = this.convertToCodepointKey(character);
-        return this.glyphs.get(key);
+        let glyph = this.glyphs.get(key);
+        if (!glyph && key !== 'FFFD') {
+            glyph = this.glyphs.get('FFFD');
+        }
+        if (!glyph && useFallback) {
+            glyph = this.buildFallbackGlyph();
+        }
+        return glyph;
     }
 
     /**
-     * Returns the horizontal advance to the next glyph's origin (the rightmost or `monospaceWidth` if defined, plus `letterSpacing`).
+     * Checks whether a character has an actual glyph defined in the font (or a defined U+FFFD
+     * replacement glyph), ignoring the synthesized fallback box.
+     */
+    hasGlyph(character: string | number): boolean {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
+        const key = this.convertToCodepointKey(character);
+        return this.glyphs.has(key) || this.glyphs.has('FFFD');
+    }
+
+    /**
+     * @returns Horizontal advance (in `Number`) to the next glyph's origin (the rightmost or `monospaceWidth` if defined, plus `letterSpacing`).
      */
     getAdvance(character: string | number): number {
         if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
