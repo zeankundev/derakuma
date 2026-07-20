@@ -65,7 +65,7 @@ export class DerakumaParser {
     private glyphs = new Map<string, Glyph>();
     private loadPromiseFunc: Promise<void>;
 
-    private async fetchBeneFile(url: string, method: FontLoadMethod | string): Promise<string> {
+    private async fetchBeneFile(url: string, method: FontLoadMethod | string, encoding: string = 'utf-8'): Promise<string> {
         const hasFetch = typeof fetch === 'function';
         let fetchError: Error | null = null;
 
@@ -83,16 +83,23 @@ export class DerakumaParser {
         } 
         
         if (method === FontLoadMethod.FILE) {
-            try {
-                const { readFile } = await import('fs/promises');
-                return await readFile(url, 'utf-8');
-            } catch (error) {
-                throw new Error(`Woopsies! Failed to read file ${url}! ${(error as Error).message}`);
-            }
+            return this.fetchBeneFileSync(url, encoding);
         }
 
         // Fallback if environment setup is wrong or an unsupported method is passed
         throw new Error(`Unsupported method or missing environment capabilities for ${url}`);
+    }
+
+    private fetchBeneFileSync(url: string, encoding: string = 'utf-8'): string {
+        if (typeof require !== 'function') {
+            throw new Error(`Synchronous file reads are unavailable in this environment for ${url}`);
+        }
+        try {
+            const { readFileSync } = require('fs') as typeof import('fs');
+            return readFileSync(url, encoding as BufferEncoding);
+        } catch (error) {
+            throw new Error(`Woopsies! Failed to read file ${url}! ${(error as Error).message}`);
+        }
     }
 
     private parsePolylineLine(line: string): RawVector2[] {
@@ -273,10 +280,11 @@ export class DerakumaParser {
             const points = this.parsePolylineLine(line);
             if (points.length) current.polylines.push(points);
         }
+        this.isInitialized = true;
     }
 
-    private async load(source: string, loadMethod: FontLoadMethod | string): Promise<void> {
-        const rawContent = await this.fetchBeneFile(source, loadMethod);
+    private async load(source: string, loadMethod: FontLoadMethod | string, encoding: string): Promise<void> {
+        const rawContent = await this.fetchBeneFile(source, loadMethod, encoding);
         this.parseBene(rawContent);
     }
 
@@ -313,12 +321,25 @@ export class DerakumaParser {
         return commands;
     }
 
+    private isInitialized = false;
+
     /**
      * @param source A path to a .bene file
      * @param loadMethod (optional) The method to load the .bene file. Defaults to 'fetch'. For local Node/Bun, use 'file'.
+     * @param encoding The encoding to use when reading the .bene file. Defaults to 'utf-8'.
      */
-    constructor(source: string, loadMethod: FontLoadMethod | string = FontLoadMethod.FETCH) {
-        this.loadPromiseFunc = this.load(source, loadMethod);
+    constructor(
+        source: string, 
+        loadMethod: FontLoadMethod | string = FontLoadMethod.FETCH,
+        encoding: string = 'utf-8'
+    ) {
+        if (loadMethod === FontLoadMethod.FILE) {
+            this.parseBene(this.fetchBeneFileSync(source, encoding));
+            this.loadPromiseFunc = Promise.resolve();
+        } else {
+            // fetch() has no synchronous equivalent, so remote sources still load async.
+            this.loadPromiseFunc = this.load(source, loadMethod, encoding);
+        }
     }
     
     ready(): Promise<void> {
@@ -329,8 +350,8 @@ export class DerakumaParser {
      * @param character Either a single character (e.g. "A"), a Unicode codepoint (e.g. "0041"), or a hex codepoint (e.g. 0x41).
      * @returns Pen commands to be used. One PD/PU pair per glyph. Empty if not found or undefined.
      */
-    async getGlyph(character: string | number): Promise<PenCommand[]> {
-        const glyph = await this.getGlyphData(character);
+    getGlyph(character: string | number): PenCommand[] {
+        const glyph = this.getGlyphData(character);
         if (!glyph) return [];
         return this.glyphToPenCommands(glyph);
     }
@@ -338,8 +359,8 @@ export class DerakumaParser {
     /**
      * Same as {@link getGlyph} but actually returns the resolved glyph data rather than pen commands.
      */
-    async getGlyphData(character: string | number): Promise<Glyph | undefined> {
-        await this.loadPromiseFunc;
+    getGlyphData(character: string | number): Glyph | undefined {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         const key = this.convertToCodepointKey(character);
         return this.glyphs.get(key);
     }
@@ -347,9 +368,9 @@ export class DerakumaParser {
     /**
      * Returns the horizontal advance to the next glyph's origin (the rightmost or `monospaceWidth` if defined, plus `letterSpacing`).
      */
-    async getAdvance(character: string | number): Promise<number> {
-        await this.loadPromiseFunc;
-        const glyph = await this.getGlyphData(character);
+    getAdvance(character: string | number): number {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
+        const glyph = this.getGlyphData(character);
         const width = this.metadata.monospaceWidth ?? (glyph ? Math.max(glyph.maxX, 0) : 0);
         const trailing = glyph?.whitespace ?? 0;
         return width + trailing + this.metadata.letterSpacing;
@@ -359,15 +380,15 @@ export class DerakumaParser {
      * @param text A whole sentence (can be separated with spaces)
      * @returns An array of `char`, `x` and their respective `commands`
      */
-    async getSentenceCommand(text: string): Promise<Array<{ char: string; x: number; commands: PenCommand[] }>> {
-        await this.loadPromiseFunc;
+    getSentenceCommand(text: string): Array<{ char: string; x: number; commands: PenCommand[] }> {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         const result: Array<{ char: string; x: number; commands: PenCommand[] }> = [];
         let cursor = 0;
         for (const char of text) {
-            const commands = await this.getGlyph(char);
+            const commands = this.getGlyph(char);
             const translated = commands.map((c) => ({ ...c, x: c.x + cursor }));
             result.push({ char, x: cursor, commands: translated });
-            cursor += await this.getAdvance(char);
+            cursor += this.getAdvance(char);
         }
         return result;
     }
@@ -375,8 +396,8 @@ export class DerakumaParser {
     /**
      * List all available glyphs you can use
      */
-    async listGlyphs(): Promise<string[]> {
-        await this.loadPromiseFunc;
+    listGlyphs(): string[] {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         return Array.from(this.glyphs.keys());
     }
 }

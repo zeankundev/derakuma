@@ -10,20 +10,27 @@ describe('Derakuma Parser', () => {
         expect(parsedFont).toBeDefined();
         console.log(parsedFont)
     });
-    it('can fetch pen commands for a simple glyph', async () => {
-        expect(await parsedFont.getGlyph('A')).toBeDefined();
-        console.log(await parsedFont.getGlyph('A'));
+    it('can fetch pen commands for a simple glyph', () => {
+        expect(parsedFont.getGlyph('A')).toBeDefined();
+        console.log(parsedFont.getGlyph('A'));
     });
-    it('can fetch actual glyph data', async () => {
-        expect(await parsedFont.getGlyphData('A')).toBeDefined();
-        console.log(await parsedFont.getGlyphData('A'));
+    it('can fetch actual glyph data', () => {
+        expect(parsedFont.getGlyphData('A')).toBeDefined();
+        console.log(parsedFont.getGlyphData('A'));
     });
-    it('can get the horizontal x advancement to the next glyph', async () => {
-        expect(await parsedFont.getAdvance('A')).toBeDefined();
-        console.log(await parsedFont.getAdvance('A'));
+    it('can get the horizontal x advancement to the next glyph', () => {
+        expect(parsedFont.getAdvance('A')).toBeDefined();
+        console.log(parsedFont.getAdvance('A'));
     });
-    it('can form proper glyph/pen commands from a sentence', async () => {
-        expect(await parsedFont.getSentenceCommand('Hello, World!')).toBeDefined();
-        console.log(await parsedFont.getSentenceCommand('Hello, World!'));
+    it('can form proper glyph/pen commands from a sentence', () => {
+        expect(parsedFont.getSentenceCommand('Hello, World!')).toBeDefined();
+        console.log(parsedFont.getSentenceCommand('Hello, World!'));
+    });
+    it('can parse a proper Bene font under any encodings encountered', () => {
+        const opengost = new DerakumaParser(path.join(__dirname, 'fixtures', 'opengost.bene'), 'file', 'utf-16le');
+        expect(opengost).toBeDefined();
+        expect(opengost.getGlyph('a')).toBeDefined();
+        console.log(opengost);
+        console.log(opengost.getGlyph('a'));
     });
 });
