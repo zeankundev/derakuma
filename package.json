@@ -33,7 +33,8 @@
     "test:watch": "vitest",
     "build": "npm run build:node && npm run build:web",
     "build:node": "tsc -p tsconfig.json",
-    "build:web": "tsc -p tsconfig.web.json && esbuild dist/web.js --minify --outfile=dist/web.min.js"
+    "build:web": "tsc -p tsconfig.web.json && esbuild dist/web.js --minify --outfile=dist/web.min.js",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
