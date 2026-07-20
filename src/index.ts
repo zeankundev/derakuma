@@ -4,6 +4,9 @@
  * PU = pen up
  * MP = move pen
  */
+
+import { createRequire } from 'node:module';
+
 export type PenCommand =
     | { command: 'PD'; x: number; y: number }
     | { command: 'PU'; x: number; y: number }
@@ -91,12 +94,20 @@ export class DerakumaParser {
     }
 
     private fetchBeneFileSync(url: string, encoding: string = 'utf-8'): string {
-        if (typeof require !== 'function') {
+        let fsModule: typeof import('fs');
+        try {
+            if (typeof require === 'function') {
+                fsModule = require('fs');
+            } else {
+                const req = createRequire(process.cwd() + '/');
+                fsModule = req('fs');
+            }
+        } catch (error) {
             throw new Error(`Synchronous file reads are unavailable in this environment for ${url}`);
         }
+
         try {
-            const { readFileSync } = require('fs') as typeof import('fs');
-            return readFileSync(url, encoding as BufferEncoding);
+            return fsModule.readFileSync(url, encoding as BufferEncoding);
         } catch (error) {
             throw new Error(`Woopsies! Failed to read file ${url}! ${(error as Error).message}`);
         }
