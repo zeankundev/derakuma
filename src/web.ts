@@ -66,6 +66,7 @@ class DerakumaParser {
     }
     private glyphs = new Map<string, Glyph>();
     private loadPromiseFunc: Promise<void>;
+    private isInitialized = false;
 
     private async fetchBeneFile(url: string, method: FontLoadMethod | string): Promise<string> {
         const hasFetch = typeof fetch === 'function';
@@ -263,6 +264,7 @@ class DerakumaParser {
             const points = this.parsePolylineLine(line);
             if (points.length) current.polylines.push(points);
         }
+        this.isInitialized = true;
     }
 
     private async load(source: string, loadMethod: FontLoadMethod | string): Promise<void> {
@@ -304,13 +306,18 @@ class DerakumaParser {
     }
 
     /**
-     * @param source A URL to a .bene file. Node's "file" load method is not
-     * available in the browser build — only FontLoadMethod.FETCH works here.
+     * @param source A URL to a .bene file. The file loads asynchronously in the background.
+     * Call {@link ready} to wait for loading to complete before using other methods.
+     * @param loadMethod (optional) The method to load the .bene file. Defaults to 'fetch'.
+     * Only FontLoadMethod.FETCH is supported in the browser build.
      */
     constructor(source: string, loadMethod: FontLoadMethod | string = FontLoadMethod.FETCH) {
         this.loadPromiseFunc = this.load(source, loadMethod);
     }
 
+    /**
+     * Waits for the font file to finish loading asynchronously.
+     */
     ready(): Promise<void> {
         return this.loadPromiseFunc;
     }
@@ -319,8 +326,9 @@ class DerakumaParser {
      * @param character Either a single character (e.g. "A"), a Unicode codepoint (e.g. "0041"), or a hex codepoint (e.g. 0x41).
      * @returns Pen commands to be used. One PD/PU pair per glyph. Empty if not found or undefined.
      */
-    async getGlyph(character: string | number): Promise<PenCommand[]> {
-        const glyph = await this.getGlyphData(character);
+    getGlyph(character: string | number): PenCommand[] {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
+        const glyph = this.getGlyphData(character);
         if (!glyph) return [];
         return this.glyphToPenCommands(glyph);
     }
@@ -328,8 +336,8 @@ class DerakumaParser {
     /**
      * Same as {@link getGlyph} but actually returns the resolved glyph data rather than pen commands.
      */
-    async getGlyphData(character: string | number): Promise<Glyph | undefined> {
-        await this.loadPromiseFunc;
+    getGlyphData(character: string | number): Glyph | undefined {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         const key = this.convertToCodepointKey(character);
         return this.glyphs.get(key);
     }
@@ -337,9 +345,9 @@ class DerakumaParser {
     /**
      * Returns the horizontal advance to the next glyph's origin (the rightmost or `monospaceWidth` if defined, plus `letterSpacing`).
      */
-    async getAdvance(character: string | number): Promise<number> {
-        await this.loadPromiseFunc;
-        const glyph = await this.getGlyphData(character);
+    getAdvance(character: string | number): number {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
+        const glyph = this.getGlyphData(character);
         const width = this.metadata.monospaceWidth ?? (glyph ? Math.max(glyph.maxX, 0) : 0);
         const trailing = glyph?.whitespace ?? 0;
         return width + trailing + this.metadata.letterSpacing;
@@ -349,15 +357,15 @@ class DerakumaParser {
      * @param text A whole sentence (can be separated with spaces)
      * @returns An array of `char`, `x` and their respective `commands`
      */
-    async getSentenceCommand(text: string): Promise<Array<{ char: string; x: number; commands: PenCommand[] }>> {
-        await this.loadPromiseFunc;
+    getSentenceCommand(text: string): Array<{ char: string; x: number; commands: PenCommand[] }> {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         const result: Array<{ char: string; x: number; commands: PenCommand[] }> = [];
         let cursor = 0;
         for (const char of text) {
-            const commands = await this.getGlyph(char);
+            const commands = this.getGlyph(char);
             const translated = commands.map((c) => ({ ...c, x: c.x + cursor }));
             result.push({ char, x: cursor, commands: translated });
-            cursor += await this.getAdvance(char);
+            cursor += this.getAdvance(char);
         }
         return result;
     }
@@ -365,8 +373,8 @@ class DerakumaParser {
     /**
      * List all available glyphs you can use
      */
-    async listGlyphs(): Promise<string[]> {
-        await this.loadPromiseFunc;
+    listGlyphs(): string[] {
+        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
         return Array.from(this.glyphs.keys());
     }
 }
