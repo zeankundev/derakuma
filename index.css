@@ -41,8 +41,6 @@ header {
     width: calc(100vw - (2 * 20px));
     justify-content: space-between;
     align-items: center;
-    position: absolute;
-    left: 20px;
     z-index: 2;
 }
 
