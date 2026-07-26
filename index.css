@@ -41,6 +41,8 @@ header {
     width: calc(100vw - (2 * 20px));
     justify-content: space-between;
     align-items: center;
+    position: absolute;
+    left: 20px;
     z-index: 2;
 }
 
@@ -101,7 +103,7 @@ header {
     position: absolute;
     z-index: 2;
     top: -10px;  /* or whatever value you need */
-    right: -15px;
+    right: -5px;
     height: 52px;
     transform: rotate(-15deg);
 }
