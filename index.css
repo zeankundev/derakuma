@@ -1,0 +1,155 @@
+* {
+    margin: 0;
+}
+
+h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+}
+
+h2 {
+    font-size: clamp(1.25rem, 4vw, 1.8rem);
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Raglan Punch', sans-serif;
+    color: #FFFFFF;
+    -webkit-text-stroke: 6pt #00124E;
+    paint-order: stroke fill;
+    filter: 
+        drop-shadow(0px 1px 0 #00124E)
+        drop-shadow(0px 2px 0 #00124E)
+        drop-shadow(0px 3px 0 #00124E)
+        drop-shadow(0px 3.5px 0 #00124E);
+}
+
+p {
+    font-family: 'HarmonyOS Sans', sans-serif;
+    font-size: 1.25rem;
+    color: #FFFFFF;
+    -webkit-text-stroke: 4pt #00124E;
+    paint-order: stroke fill;
+    filter: 
+        drop-shadow(0px 1px 0 #00124E)
+        drop-shadow(0px 2px 0 #00124E)
+        drop-shadow(0px 3px 0 #00124E)
+}
+
+header {
+    padding: 20px;
+    display: flex;
+    width: calc(100vw - (2 * 20px));
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+}
+
+.unique-button {
+    font-family: 'Raglan Punch', sans-serif;
+    color: #00124E;
+    text-decoration: none;
+    padding: 6px 20px;
+    background-color: #FFFFFF;
+    border-radius: 10px;
+    border: 4px solid #00124E;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.1s ease-out;
+    box-shadow: 
+        0px 8px 0px 0px #00124E;
+    position: relative;
+    top: 0;
+}
+
+.unique-button.monospaced {
+    font-family: 'Courier New', monospace;
+}
+
+.unique-button.large {
+    font-size: 1rem;
+    padding: 10px 30px;
+}
+
+.column-flex-center {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+}
+
+.unique-button:hover {
+    box-shadow: 
+        0px 5px 0px 0px #00124E;
+    top: 3px;
+}
+
+.unique-button:active {
+    box-shadow: 
+        0px 2px 0px 0px #00124E;
+    top: 6px;
+}
+
+.clouds {
+    position: absolute;
+    z-index: -1;
+    top: 0;  /* or whatever value you need */
+    left: 0;
+    height: 48px;
+}
+
+.bear-popup {
+    position: absolute;
+    z-index: 2;
+    top: -10px;  /* or whatever value you need */
+    right: -15px;
+    height: 52px;
+    transform: rotate(-15deg);
+}
+
+.flex-aside {
+    display: flex;
+    gap: 20px;
+}
+
+.center-div {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.left-paragraph-align-trusted-by {
+    text-align: left;
+}
+
+.nested-maxwidth {
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+    margin: 0 auto;
+    gap: 20px;
+}
+
+.hero {
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+.supporter-flex {
+    margin-top: 40px;
+    display: flex;
+    flex-wrap: wrap;
+}
+.supporter-flex img {
+    max-height: 32px;
+}
+
+body {
+    background-color: #51BCF3;
+    overflow-x: hidden;
+}

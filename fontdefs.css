@@ -1,0 +1,10 @@
+@font-face {
+    font-family: 'Raglan Punch';
+    src: url('./assets//fonts/raglanpunch.otf') format('opentype');
+    font-weight: 700;
+}
+@font-face {
+    font-family: 'HarmonyOS Sans';
+    src: url('./assets/fonts/hmos.ttf') format('truetype');
+    font-weight: 700;
+}

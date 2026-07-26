@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="shortcut icon" href="assets/favicon.png">
+        <link rel="stylesheet" href="index.css">
+        <link rel="stylesheet" href="fontdefs.css">
+        <title>Derakuma — A Fontobene library for the web</title>
+    </head>
+    <body>
+        <header>
+            <a href="index.html">
+                <img src="./assets/logomark.png" alt="Derakuma logo" height="48">
+            </a>
+            <img class="bear-popup" alt="Image of Derakkuma" src="./assets/dabear.png">
+            <a class="unique-button" href="https://github.com/zeankundev/derakuma/fork" target="_blank">
+                Fork me!
+            </a>
+        </header>
+        <div class="center-div">
+            <div class="nested-maxwidth">
+                <div class="hero">
+                    <h1>Stroke fonts for the modern web.</h1>
+                    <p>JavaScript/TypeScript should be the new place and way to develop complex apps, such as CAD, CNC, or design software. Derakuma helps to fill in the gap of CAD and industrials with fonts, and with ease.</p>
+                    <div class="flex-aside">
+                        <a class="unique-button large" style="background-color: #ff5050; color: #fff;" href="https://www.npmjs.com/package/derakuma" target="_blank">
+                            Get yours as npm package
+                        </a>
+                        <a class="unique-button large" href="https://github.com/zeankundev/derakuma" target="_blank">
+                            Source code
+                        </a>
+                    </div>
+                </div>
+                <div class="left-paragraph-align-trusted-by">
+                    <h2>Trusted and supported by</h2>
+                    <div class="supporter-flex">
+                        <img src="./assets/compasscad.svg" alt="CompassCAD logo">
+                    </div>
+                </div>
+                <div>
+                    <h2>Get Started!</h2>
+                    <div class="column-flex-center" style="padding-top: 40px;">
+                        <div class="flex-aside">
+                            <select class="unique-button large" id="package-manager-select">
+                                <option value="npm" selected>npm</option>
+                                <option value="yarn">yarn</option>
+                                <option value="bun">Bun</option>
+                            </select>
+                            <input title="Copy to Clipboard" class="unique-button monospaced large" type="text" id="installation-command" value="npm i derakuma" readonly>
+                        </div>
+                        <div class="flex-aside" style="justify-content: space-between;">
+                            <a class="unique-button large" style="background-color: #00A3FF; color: #fff; padding: 10px 20px;" href="https://github.com/zeankundev/derakuma/wiki" target="_blank">
+                                Read the docs
+                            </a>
+                            <a class="unique-button large" style="padding: 10px 20px;" href="#" target="_blank">
+                                Playground (WIP)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="left-paragraph-align-trusted-by" style="margin-bottom: 40px; margin-top: 120px;">
+                    <p>The Derakuma Project is unrelated with maimai, and unofficial with its original and respective owners.
+
+                    Software © 2026 zeankun.
+                    All rights reserved. Licensed on MIT.
+                    Original IP © SEGA. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+        <img class="clouds" style="top: 30%; left: 17%; transform: rotate(-15deg);" alt="Decorative cloud" src="./assets/decorcloud.png">
+        <img class="clouds" style="top: 30%; left: 73%; transform: rotate(10deg);" alt="Decorative cloud" src="./assets/decorcloud.png">
+        <img class="clouds" style="top: 27%; left: 45%; transform: rotate(2deg);" alt="Decorative cloud" src="./assets/decorcloud.png">
+        <script>
+            const packageManagerSelect = document.getElementById('package-manager-select');
+            const installationCommandInput = document.getElementById('installation-command');
+            packageManagerSelect.addEventListener('change', () => {
+                const selectedPackageManager = packageManagerSelect.value;
+                let command = '';
+                switch (selectedPackageManager) {
+                    case 'npm':
+                        command = 'npm i derakuma';
+                        break;
+                    case 'yarn':
+                        command = 'yarn add derakuma';
+                        break;
+                    case 'bun':
+                        command = 'bun add derakuma';
+                        break;
+                }
+                installationCommandInput.value = command;
+            });
+            installationCommandInput.addEventListener('click', () => {
+                installationCommandInput.select();
+                document.execCommand('copy');
+                installationCommandInput.value += ' ✅';
+                setTimeout(() => {
+                    switch (packageManagerSelect.value) {
+                        case 'npm':
+                            installationCommandInput.value = 'npm i derakuma';
+                            break;
+                        case 'yarn':
+                            installationCommandInput.value = 'yarn add derakuma';
+                            break;
+                        case 'bun':
+                            installationCommandInput.value = 'bun add derakuma';
+                            break;
+                    }
+                }, 1000);
+            });
+        </script>
+    </body>
+</html>
