@@ -142,9 +142,7 @@ function glyphToPenCommands(glyph: Glyph): PenCommand[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Immutable parsed font model.  All methods are synchronous – loading and
- * decoding is handled by `Derakuma.*` factory methods before this object
- * is returned to the caller.
+ * The main Derakuma font class.
  */
 export class DerakumaFont {
     /** Parsed header metadata from the `.bene` file. */
@@ -164,10 +162,10 @@ export class DerakumaFont {
     // -----------------------------------------------------------------------
 
     /**
-     * Return the raw pen-command sequence for `character`.
+     * Returns the raw pen-command sequence for `character`.
      *
-     * Falls back to the `U+FFFD` replacement glyph or a synthesised
-     * box-with-cross if the character is not in the font.
+     * If the specified character is missing, the `U+FFFD` replacement glyph is used.
+     * If that is also missing, a synthesised fallback glyph is returned instead.
      *
      * @param character - A single character, a numeric codepoint, or an
      *                    explicit `"U+XXXX"` / `"0xXXXX"` string.
@@ -179,7 +177,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Return the raw `Glyph` record (with polylines) for `character`.
+     * Returns either the known `Glyph` record for `character`, the `U+FFFD` replacement glyph, or a synthesised fallback glyph.
      *
      * @param character  - Character, codepoint, or explicit hex string.
      * @param useFallback - When `true` (default), returns the synthesised
@@ -194,8 +192,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Look up a glyph by a **single character** (Unicode scalar value).
-     * Equivalent to `getGlyphData(char)` but semantically explicit.
+     * Looks a glyph up by a single character. If that character does not exist in the font, the `U+FFFD` replacement glyph is used. If that is also missing, a synthesised fallback glyph is returned instead.
      */
     getGlyphByChar(char: string): Glyph | undefined {
         if (Array.from(char).length !== 1) return undefined;
@@ -203,7 +200,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Look up a glyph by a numeric Unicode codepoint or `"U+XXXX"` string.
+     * Looks a glyph up by a numeric codepoint or an explicit `"U+XXXX"` / `"0xXXXX"` string. 
      */
     getGlyphByCode(code: number | string): Glyph | undefined {
         return this.getGlyphData(code);
@@ -225,7 +222,7 @@ export class DerakumaFont {
     // -----------------------------------------------------------------------
 
     /**
-     * Horizontal advance width for `character` (glyph width + whitespace + letter spacing).
+     * Returns the horizontal advance width for `character` (glyph width + whitespace + letter spacing).
      */
     getAdvance(character: string | number): number {
         const glyph = this.getGlyphData(character);
@@ -235,7 +232,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Measure the bounding box of a (possibly multi-line) text string.
+     * Measures the bounding box of a text string, including multilines.
      *
      * @returns `{ width, height, minX, maxX, minY, maxY }` in font units.
      */
@@ -330,7 +327,7 @@ export class DerakumaFont {
     // -----------------------------------------------------------------------
 
     /**
-     * Render `text` to an SVG `<path d="...">` string.
+     * Renders the specified `text` to an SVG `<path d="...">` string.
      *
      * Each stroke is emitted as `M x y L x y L x y …` segments.
      * Multiple strokes are concatenated (SVG `<path>` supports multiple
@@ -338,7 +335,7 @@ export class DerakumaFont {
      *
      * ```ts
      * const d = font.renderToSvg('Hello World');
-     * // → 'M 0.86 2.57 L 5.14 2.57 M 0 0 L 3 9 L 6 0 ...'
+     * // -> 'M 0.86 2.57 L 5.14 2.57 M 0 0 L 3 9 L 6 0 ...'
      * ```
      */
     renderToSvg(text: string, options: LayoutTextOptions = {}): string {
@@ -365,7 +362,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Render `text` directly to an HTML5 Canvas 2D context.
+     * Renders `text` directly to an existing HTML5 Canvas 2D context.
      *
      * ```ts
      * font.renderToCanvas(ctx, 'Hello', { x: 10, y: 50, strokeStyle: '#000' });
@@ -401,8 +398,7 @@ export class DerakumaFont {
     }
 
     /**
-     * Return `text` as an array of polylines, suitable for use with WebGL,
-     * Three.js, Paper.js, G-code generators, or CNC toolpaths.
+     * Return `text` as an array of polylines to be used elsewhere, such as WebGL, CNC machinery, etc.
      *
      * ```ts
      * const polylines = font.toPolylines('Hi');

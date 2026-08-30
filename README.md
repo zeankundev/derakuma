@@ -14,6 +14,16 @@ npm i derakuma
 bun add derakuma
 ```
 
+## Usage
+
+Derakuma is now easier to use! Just:
+
+```js
+const { loadFontFromFile } = require('derakuma/loaders/node');
+const myFont = loadFontFromFile('./myfont.bene');
+myFont.getGlyph('a');
+```
+
 ## License
 
 MIT

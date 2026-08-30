@@ -124,18 +124,17 @@ function resolveGlyph(
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a raw FontoBene string into a `FontData` object.
- *
- * This is a **pure synchronous** function with no I/O.  Load the file
- * content yourself (e.g. via `fs.readFileSync`, `fetch`, or a Vite `?raw`
- * import) and pass the decoded string here.
+ * Parses a raw FontoBene content string into a `FontData` object.
+ * 
+ * Before this, **you must make sure the font content exists and is certain.**
+ * If you want a more convenient API that handles async loading, use `Derakuma.load(url)` or `Derakuma.parse(text)` instead.
  *
  * ```ts
  * import { parseBene } from 'derakuma/core/parser';
  * const data = parseBene(myFileContent);
  * ```
  *
- * @throws {DerakumaParseError} on circular glyph references.
+ * @throws `DerakumaParseError` on circular glyph references.
  */
 export function parseBene(rawContent: string): FontData {
     const lines = rawContent.split(/\r\n|\r|\n/);

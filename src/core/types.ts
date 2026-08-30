@@ -17,12 +17,19 @@ export type PenCommand =
 
 /** Metadata parsed from the FontoBene file header. */
 export interface FontMetadata {
+    /** FontoBene format version */
     formatVersion?: string;
+    /** ID of the font. Should not contain spaces or abnormal characters. */
     id?: string;
+    /** Human readable name of the font. */
     name?: string;
+    /** Optional description of the font. */
     description?: string;
+    /** Font version */
     version?: string;
+    /** Authors of the font. */
     authors: string[];
+    /** Font license */
     licenses: string[];
     /** Extra spacing added between adjacent glyphs. */
     letterSpacing: number;
@@ -81,11 +88,17 @@ export interface LayoutTextOptions {
 
 /** Metrics returned by `measureText`. */
 export interface TextMetrics {
+    /** Width of the text. Done by calculating the delta between `maxX` and `minX`. */
     width: number;
+    /** Height of the text. Done by calculating the delta between `maxY` and `minY`. */
     height: number;
+    /** Leftmost x coordinate of all stroke points. */
     minX: number;
+    /** Rightmost x coordinate of all stroke points. */
     maxX: number;
+    /** Topmost y coordinate of all stroke points. */
     minY: number;
+    /** Bottommost y coordinate of all stroke points. */
     maxY: number;
 }
 

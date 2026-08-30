@@ -58,21 +58,22 @@ import { loadFontFromUrl } from './loaders/web.js';
 import { loadFontFromFile } from './loaders/node.js';
 
 /**
- * Top-level namespace / factory for Derakuma.
- *
- * Use these static methods instead of `new DerakumaParser(...)` to avoid the
- * async-constructor race hazard described in the pain-point analysis.
+ * The main Derakuma object constructor.
+ * 
+ * Replaces the old `new DerakumaParser(...)` that are prone to async bugs.
  */
 export const Derakuma = {
     /**
-     * Synchronously parse an already-decoded `.bene` string into a font object.
-     *
-     * Use this when you already have the file content in memory — for example
-     * from a Vite `?raw` import, a WebWorker message, a file input read, etc.
-     *
+     * Instantly loads and parses the provided `.bene` content string.
+     * 
+     * Use this when you have a font string already loaded in memory. These include, but not limited to:
+     * - Vite `?raw` imports
+     * - Direct file reads as a string (encoding varies)
+     * - Hardcoded font strings (not recommended, **may bloat your code**)
+     * 
      * ```ts
-     * import rawFont from './fonts/newstroke.bene?raw'; // Vite
-     * const font = Derakuma.parse(rawFont);
+     * import BeneFont from './your/font.bene?raw'; // Vite is used here as a demo
+     * const myFont = Derakuma.parse(BeneFont);
      * ```
      */
     parse(content: string): DerakumaFont {
@@ -80,24 +81,30 @@ export const Derakuma = {
     },
 
     /**
-     * Load a `.bene` font from a URL using the global `fetch` API.
-     *
-     * Works in browsers, Node 18+, Bun, Deno, and edge runtimes.
-     *
+     * Loads a `.bene` font from a specified URL (HTTP/HTTPS or data: URI) and parses it.
+     * 
+     * **Compatible in:**
+     * - Modern browsers (with `fetch` support)
+     * - Node.js 18+ (with global `fetch`)
+     * - Bun
+     * - Deno
+     * - Edge and serverless runtimes (Vercel, Cloudflare Workers, etc.)
+     * 
      * ```ts
-     * const font = await Derakuma.loadFontFromUrl('https://example.com/font.bene');
+     * const myFont = await Derakuma.loadFontFromUrl('https://example.com/fonts/myfont.bene');
      * ```
      */
     loadFontFromUrl,
 
     /**
-     * Load a `.bene` font from the local file system.
-     *
-     * Only available in Node.js, Bun, and Deno environments.
-     *
+     * Loads a `.bene` font file from the file system of where it's used/hosted.
+     * 
+     * **Compatible in:**
+     * - Node.js (all versions)
+     * - Bun
+     * 
      * ```ts
-     * const font = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
-     * const font = await Derakuma.loadFontFromFile('./fonts/opengost.bene', 'utf-16le');
+     * const myFont = await Derakuma.loadFontFromFile('./fonts/myfont.bene');
      * ```
      */
     loadFontFromFile,
