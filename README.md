@@ -18,9 +18,9 @@ bun add derakuma
 
 Derakuma is now easier to use! Just:
 
-```js
-const { loadFontFromFile } = require('derakuma/loaders/node');
-const myFont = loadFontFromFile('./myfont.bene');
+```ts
+import { Derakuma } from 'derakuma';
+const myFont = Derakuma.loadFontFromFile('./myfont.bene');
 myFont.getGlyph('a');
 ```
 
