@@ -34,6 +34,18 @@ import { DerakumaNotReadyError } from '../errors/index.js';
 // Fallback-glyph builder (drawn as a box with a cross)
 // ---------------------------------------------------------------------------
 
+/**
+ * Synthesise a fallback glyph, drawn as a box with a diagonal cross
+ * ("tofu" style), used when a character and the `U+FFFD` replacement
+ * glyph are both missing from the font.
+ *
+ * Sizing is derived from the font's `lineSpacing` (height) and
+ * `monospaceWidth` (width), each falling back to sane defaults when the
+ * metadata doesn't specify them.
+ *
+ * @param metadata - Font metadata used to size the fallback glyph.
+ * @returns A synthesised `Glyph` with codepoint `"NOTDEF"`.
+ */
 function buildFallbackGlyph(metadata: FontMetadata): Glyph {
     const height = metadata.lineSpacing > 0 ? metadata.lineSpacing : 9;
     const width = metadata.monospaceWidth ?? height * 0.6;
@@ -101,6 +113,16 @@ function convertToCodepointKey(input: string | number): string {
 // Glyph → PenCommand conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Convert a `Glyph`'s polylines into a flat sequence of pen commands.
+ *
+ * Each polyline becomes a `PD` (pen down) at its first point, an `MP`
+ * (move-while-pressed) for every subsequent point, and a trailing `PU`
+ * (pen up) at the last point. Empty polylines are skipped.
+ *
+ * @param glyph - The glyph whose polylines should be converted.
+ * @returns The equivalent pen-command sequence, in glyph-local coordinates.
+ */
 function glyphToPenCommands(glyph: Glyph): PenCommand[] {
     const commands: PenCommand[] = [];
     for (const polyline of glyph.polylines) {
@@ -242,10 +264,6 @@ export class DerakumaFont {
             maxY: totalHeight,
         };
     }
-
-    // -----------------------------------------------------------------------
-    // Text layout
-    // -----------------------------------------------------------------------
 
     /**
      * Layout `text` (which may include `\n` / `\r\n` newlines) into a flat
@@ -416,6 +434,12 @@ export class DerakumaFont {
     // Private helpers
     // -----------------------------------------------------------------------
 
+    /**
+     * Return this font's synthesised fallback glyph, building and caching
+     * it on first use.
+     *
+     * @returns The lazily-built, memoised fallback `Glyph`.
+     */
     private _fallbackGlyph(): Glyph {
         if (!this.fallbackGlyphCache) {
             this.fallbackGlyphCache = buildFallbackGlyph(this.metadata);

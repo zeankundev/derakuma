@@ -84,6 +84,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "docs": "typedoc",
     "prepublishOnly": "npm run clean && npm run build && npm run test"
   },
   "devDependencies": {
@@ -91,7 +92,8 @@
     "esbuild": "^0.25.12",
     "rimraf": "^6.1.3",
     "tsup": "^8.5.1",
-    "typescript": "^7.0.2",
+    "typedoc": "^0.28.20",
+    "typescript": "^5.7.0",
     "vitest": "^4.1.10"
   }
 }

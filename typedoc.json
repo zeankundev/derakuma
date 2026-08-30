@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "name": "derakuma",
+  "readme": "README.md",
+
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "excludeExternals": true,
+
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+
+  "navigationLinks": {
+    "GitHub": "https://github.com/zeankundev/derakuma"
+  }
+}
