@@ -25,10 +25,13 @@ import type {
     LayoutTextOptions,
     TextMetrics,
     PositionedChar,
+    ParserSettings,
 } from './types.js';
 import { parseBene } from './parser.js';
 import { computeBounds } from '../geometry/arc.js';
-import { DerakumaNotReadyError } from '../errors/index.js';
+import { DerakumaNotReadyError, DerakumaParseError } from '../errors/index.js';
+
+const CODE_RE = /^(?:U\+)?[0-9A-Fa-f]{4,6}$/;
 
 // ---------------------------------------------------------------------------
 // Fallback-glyph builder (drawn as a box with a cross)
@@ -176,6 +179,13 @@ export class DerakumaFont {
         return glyphToPenCommands(glyph);
     }
 
+    private _lookupHexKey(hexKey: string, useFallback: boolean = true): Glyph | undefined {
+        let glyph = this.glyphs.get(hexKey);
+        if (!glyph && hexKey !== 'FFFD') glyph = this.glyphs.get('FFFD');
+        if (!glyph && useFallback) glyph = this._fallbackGlyph();
+        return glyph;
+    }
+
     /**
      * Returns either the known `Glyph` record for `character`, the `U+FFFD` replacement glyph, or a synthesised fallback glyph.
      *
@@ -185,10 +195,7 @@ export class DerakumaFont {
      */
     getGlyphData(character: string | number, useFallback: boolean = true): Glyph | undefined {
         const key = convertToCodepointKey(character);
-        let glyph = this.glyphs.get(key);
-        if (!glyph && key !== 'FFFD') glyph = this.glyphs.get('FFFD');
-        if (!glyph && useFallback) glyph = this._fallbackGlyph();
-        return glyph;
+        return this._lookupHexKey(key, useFallback);
     }
 
     /**
@@ -203,7 +210,13 @@ export class DerakumaFont {
      * Looks a glyph up by a numeric codepoint or an explicit `"U+XXXX"` / `"0xXXXX"` string. 
      */
     getGlyphByCode(code: number | string): Glyph | undefined {
-        return this.getGlyphData(code);
+        const str = code.toString();
+        if (!CODE_RE.test(str)) {
+            throw new DerakumaParseError(`Invalid glyph code "${code}"`);
+        }
+        const hex = str.replace(/^U\+/i, '').toUpperCase();
+        const padded = hex.length < 4 ? hex.padStart(4, '0') : hex;
+        return this._lookupHexKey(padded);
     }
 
     /** Returns `true` if the font contains an exact glyph for `character`. */
@@ -452,7 +465,7 @@ export class DerakumaFont {
  * Build a `DerakumaFont` directly from a raw `.bene` string.
  * @internal – prefer the `Derakuma` namespace in user code.
  */
-export function fontFromString(content: string): DerakumaFont {
-    const { metadata, glyphs } = parseBene(content);
+export function fontFromString(content: string, settings: ParserSettings = { violent: false }): DerakumaFont {
+    const { metadata, glyphs } = parseBene(content, settings);
     return new DerakumaFont(metadata, glyphs);
 }

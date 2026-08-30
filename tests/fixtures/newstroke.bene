@@ -9,7 +9,7 @@
 
 [format]
 format = FontoBene
-format_version = 1.0
+format_version = 1.0.0
 
 [font]
 name = NewStroke Bene
@@ -7851,10 +7851,10 @@ line_spacing = 16
 [2027] ‧
 .43,3.86;0,3.43;.43,3;.86,3.43;.43,3.86;.43,3
 
-[2028]  
+[2028] 
 ~0
 
-[2029]  
+[2029] 
 ~0
 
 [202A] ‪

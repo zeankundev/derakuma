@@ -12,6 +12,7 @@ import { readFile } from 'node:fs/promises';
 import { DerakumaLoadError } from '../errors/index.js';
 import { fontFromString } from '../core/font.js';
 import type { DerakumaFont } from '../core/font.js';
+import { ParserSettings } from '../core/types.js';
 
 /**
  * Normalise an encoding label to a WHATWG-compatible form accepted by
@@ -41,7 +42,8 @@ export function normalizeEncoding(encoding: string): string {
  */
 export async function loadFontFromFile(
     filePath: string,
-    encoding: string = 'utf-8'
+    encoding: string = 'utf-8',
+    settings: ParserSettings = { violent: false }
 ): Promise<DerakumaFont> {
     let buffer: Buffer;
     try {
@@ -50,7 +52,7 @@ export async function loadFontFromFile(
         throw new DerakumaLoadError(filePath, (err as NodeJS.ErrnoException).message);
     }
     const text = new TextDecoder(normalizeEncoding(encoding)).decode(buffer);
-    return fontFromString(text);
+    return fontFromString(text, settings);
 }
 
 /**
@@ -63,7 +65,8 @@ export async function loadFontFromFile(
  */
 export function loadFontFromFileSync(
     filePath: string,
-    encoding: string = 'utf-8'
+    encoding: string = 'utf-8',
+    settings: ParserSettings = { violent: false }
 ): DerakumaFont {
     // Dynamic import at call-time: keeps the file tree-shakeable when
     // bundled for environments where this function is never called.
@@ -76,5 +79,5 @@ export function loadFontFromFileSync(
         throw new DerakumaLoadError(filePath, (err as NodeJS.ErrnoException).message);
     }
     const text = new TextDecoder(normalizeEncoding(encoding)).decode(buffer);
-    return fontFromString(text);
+    return fontFromString(text, settings);
 }

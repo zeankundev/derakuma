@@ -16,7 +16,7 @@ const FIXTURE = (name: string) => path.join(__dirname, 'fixtures', name);
 // ---------------------------------------------------------------------------
 
 async function loadFont(name: string, encoding?: string) {
-    return Derakuma.loadFontFromFile(FIXTURE(name), encoding);
+    return Derakuma.loadFontFromFile(FIXTURE(name), encoding, {violent: true});
 }
 
 /** Flattens polylines into a flat Float32Array of x,y pairs. */

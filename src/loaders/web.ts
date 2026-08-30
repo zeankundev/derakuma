@@ -10,6 +10,7 @@
 import { DerakumaLoadError } from '../errors/index.js';
 import { fontFromString } from '../core/font.js';
 import type { DerakumaFont } from '../core/font.js';
+import { ParserSettings } from '../core/types.js';
 
 /**
  * Load a `.bene` font from a URL using the `fetch` API.
@@ -28,6 +29,7 @@ import type { DerakumaFont } from '../core/font.js';
  */
 export async function loadFontFromUrl(
     url: string,
+    settings: ParserSettings = { violent: false },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _encoding?: string
 ): Promise<DerakumaFont> {
@@ -47,7 +49,7 @@ export async function loadFontFromUrl(
     }
 
     const text = await response.text();
-    return fontFromString(text);
+    return fontFromString(text, settings);
 }
 
 /**
@@ -56,7 +58,7 @@ export async function loadFontFromUrl(
  *
  * ```ts
  * const buf = await file.arrayBuffer();
- * const font = await loadFontFromBuffer(buf, 'utf-16le');
+ * const font = await loadFontFromBuffer(buf, 'utf-16le', { violent: false });
  * ```
  *
  * @param buffer   - Raw binary data.
@@ -64,8 +66,9 @@ export async function loadFontFromUrl(
  */
 export function loadFontFromBuffer(
     buffer: Uint8Array | ArrayBuffer,
-    encoding: string = 'utf-8'
+    encoding: string = 'utf-8',
+    settings: ParserSettings = { violent: false }
 ): DerakumaFont {
     const text = new TextDecoder(encoding).decode(buffer);
-    return fontFromString(text);
+    return fontFromString(text, settings);
 }

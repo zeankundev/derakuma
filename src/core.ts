@@ -75,7 +75,7 @@ const sectionRegex = /^\[(.+)\]$/;
  * Prefer the public `Derakuma` and `DerakumaFont` API exported from `src/index.ts`.
  * @internal
  */
-export abstract class DerakumaCore {
+export abstract class _DEPRECATED_DoNotUse_DerakumaLegacy {
     public metadata: FontMetadata = {
         authors: [],
         licenses: [],
@@ -287,6 +287,13 @@ export abstract class DerakumaCore {
             monospaceWidth: get('font.monospace_width') !== undefined ? parseFloat(get('font.monospace_width')!) : undefined,
         };
     }
+
+    /**
+     * Parses the raw `.bene` content and initializes the font data.
+     * @param rawContent The raw `.bene` file content.
+     * @deprecated Internal legacy parser for backward compatibility. Use `parse()`, `loadFontFromUrl()`, or `loadFontFromFile()` instead.
+     * @internal
+     */
 
     protected parseBene(rawContent: string): void {
         this.fallbackGlyphCache = null;

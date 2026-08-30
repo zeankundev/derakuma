@@ -15,6 +15,17 @@ export type PenCommand =
     | { command: 'PU'; x: number; y: number }
     | { command: 'MP'; x: number; y: number };
 
+
+/**
+ * Derakuma global settings that affect only on the specified font scope.
+ * 
+ * Use this to enable/disable features that Derakuma can be finetuned for the specified application
+ */
+export interface ParserSettings {
+    /** If set to true, the parser will be extremely strict about parsing `.bene` files */
+    violent?: boolean;   
+}
+
 /** Metadata parsed from the FontoBene file header. */
 export interface FontMetadata {
     /** FontoBene format version */

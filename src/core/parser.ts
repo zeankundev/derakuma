@@ -8,13 +8,15 @@
  * Node.js, Bun, Deno, browser environments, and edge runtimes.
  */
 
-import type { FontMetadata, Glyph, ParsedGlyph, ParsedGlyphInstruction, RawVector2 } from './types.js';
+import type { FontMetadata, Glyph, ParsedGlyph, ParsedGlyphInstruction, RawVector2, ParserSettings } from './types.js';
 import { flattenPolyline, computeBounds } from '../geometry/arc.js';
 import { DerakumaParseError } from '../errors/index.js';
 
 const SEPARATOR = '---';
 const GLYPH_HEADER_RE = /^\[([0-9A-Fa-f]{4,6})\]\s*(.*)$/;
 const SECTION_RE = /^\[(.+)\]$/;
+const FORMAT_VERSION_RE = /^\d+\.\d+\.\d+$/;
+const NUMBER_RE = /^-?(?:\d+\.?\d*|\.\d+)$/;
 
 /** Output produced by `parseBene`. */
 export interface FontData {
@@ -26,18 +28,24 @@ export interface FontData {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function parsePolylineLine(line: string): RawVector2[] {
+function parseStrictNumber(token: string, context: string): number {
+    if (token === undefined || !NUMBER_RE.test(token)) {
+        throw new DerakumaParseError(`Invalid numeric value "${token}" in ${context}`);
+    }
+    return parseFloat(token);
+}
+
+function parsePolylineLine(line: string, codepoint: string): RawVector2[] {
     const tokens = line.split(';').map((t) => t.trim()).filter((t) => t.length > 0);
     const points: RawVector2[] = [];
     for (const token of tokens) {
         const parts = token.split(',').map((p) => p.trim());
-        const x = parseFloat(parts[0]);
-        const y = parseFloat(parts[1]);
-        if (Number.isNaN(x) || Number.isNaN(y)) continue;
+        const x = parseStrictNumber(parts[0], `glyph ${codepoint} coordinate`);
+        const y = parseStrictNumber(parts[1], `glyph ${codepoint} coordinate`);
         const point: RawVector2 = { x, y };
-        if (parts.length >= 3) {
-            const bulge = parseFloat(parts[2]);
-            if (!Number.isNaN(bulge) && bulge !== 0) point.bulge = bulge;
+        if (parts.length >= 3 && parts[2] !== '') {
+            const bulge = parseStrictNumber(parts[2], `glyph ${codepoint} bulge`);
+            if (bulge !== 0) point.bulge = bulge;
         }
         points.push(point);
     }
@@ -98,7 +106,11 @@ function resolveGlyph(
         // Reference resolution – forward references are safe because we pass
         // the full `allParsed` map (two-pass approach: parse all, then resolve).
         const reference = allParsed.get(instruction.codepoint);
-        if (!reference) continue; // silently ignore unknown codepoints
+        if (!reference) {
+            throw new DerakumaParseError(
+                `Glyph ${parsed.codepoint} references unknown codepoint @${instruction.codepoint}`
+            );
+        }
         const resolved = resolveGlyph(reference, allParsed, nextStack);
         for (const polyline of resolved.polylines) {
             mergedPolylines.push(polyline.map((p) => ({ x: p.x, y: p.y })));
@@ -136,16 +148,17 @@ function resolveGlyph(
  *
  * @throws `DerakumaParseError` on circular glyph references.
  */
-export function parseBene(rawContent: string): FontData {
+export function parseBene(rawContent: string, settings: ParserSettings = { violent: false }): FontData {
     const lines = rawContent.split(/\r\n|\r|\n/);
     let i = 0;
     const header: Record<string, string[]> = {};
     let currentSection: string | null = null;
+    let sawSeparator: boolean = false;
 
     // --- Pass 1a: Parse header (up to the first `---` separator) ---
     for (; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (line === SEPARATOR) { i++; break; }
+        if (line === SEPARATOR) { sawSeparator = true; i++; break; }
         if (line === '' || line.startsWith('#')) continue;
 
         const sectionMatch = line.match(SECTION_RE);
@@ -161,7 +174,18 @@ export function parseBene(rawContent: string): FontData {
         (header[key] ??= []).push(value);
     }
 
+    if (!sawSeparator) {
+        throw new DerakumaParseError('Separator `---` not found in the font. Invalid FontoBene file.');
+    }
+
     const metadata = applyHeader(header);
+
+    if (metadata.formatVersion === undefined) {
+        throw new DerakumaParseError('Missing required [format] format_version');
+    }
+    if (!FORMAT_VERSION_RE.test(metadata.formatVersion)) {
+        throw new DerakumaParseError(`Invalid format_version "${metadata.formatVersion}"`);
+    }
 
     // --- Pass 1b: Parse all glyph blocks into `ParsedGlyph` structures ---
     const parsedGlyphs = new Map<string, ParsedGlyph>();
@@ -200,7 +224,7 @@ export function parseBene(rawContent: string): FontData {
             continue;
         }
 
-        const points = parsePolylineLine(line);
+        const points = parsePolylineLine(line, current.codepoint);
         if (points.length) {
             current.instructions.push({ kind: 'polyline', points });
         }
