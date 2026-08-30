@@ -5,22 +5,153 @@
 # Derakuma
 <small>(*not to be confused with Derakkuma from maimai*)</small>
 
-A small Fontobene parser for web apps requiring vector fonts, written in Typescript. The Fontobene engine behind CompassCAD NEXT. Named after **Derakkuma** from maimai. Try it out, online, [here.](https://codesandbox.io/p/sandbox/bold-rhodes-kpwhzc)
+A lightweight FontoBene stroke-font parser for TypeScript — works in browsers, Node.js, Bun, Deno, and edge runtimes. The FontoBene engine behind CompassCAD NEXT. Named after **Derakkuma** from maimai.
 
-## How to use?
-Using it is just as simple as one, two, three! Just:
-```
+## Installation
+
+```sh
 npm i derakuma
-```
-and:
-```js
-const { DerakumaParser } = require('derakuma');
-const font = new DerakumaParser('/path/to.bene');
-font.getGlyph('a');
-// Should return a series of PD, MV and PU. Those will be your drawing commands!
+# or
+bun add derakuma
 ```
 
-If you want a more in-depth coverage on how to implement, refer to the [Getting Started](https://github.com/zeankundev/derakuma/wiki/Getting-started) page on the wiki. For an even more in-depth coverage, including documentation of all the interfaces, types and functions, refer to the [List of Functions](https://github.com/zeankundev/derakuma/wiki/Lists-of-available-functions) (for advanced users)
+## Quick Start
+
+### In-memory / synchronous parse (fastest, no async)
+
+If you already have the `.bene` file content as a string (e.g. from a Vite `?raw` import, a WebWorker payload, or any custom loader):
+
+```ts
+import { Derakuma } from 'derakuma';
+
+const font = Derakuma.parse(rawBeneString);
+const cmds = font.getGlyph('A');
+// Returns an array of PD (pen down), MP (move pen), and PU (pen up) commands.
+```
+
+### Load from a URL (browser / Node 18+ / Bun / Deno)
+
+```ts
+import { Derakuma } from 'derakuma';
+
+const font = await Derakuma.loadFontFromUrl('https://example.com/fonts/newstroke.bene');
+const cmds = font.getGlyph('A');
+```
+
+### Load from the file system (Node / Bun only)
+
+```ts
+import { Derakuma } from 'derakuma';
+
+const font = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
+
+// Fonts encoded in UTF-16 LE (e.g. OpenGOST):
+const font16 = await Derakuma.loadFontFromFile('./fonts/opengost.bene', 'utf-16le');
+```
+
+### CommonJS (Node.js legacy)
+
+```js
+const { Derakuma } = require('derakuma');
+
+async function main() {
+    const font = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
+    console.log(font.getGlyph('A'));
+}
+main();
+```
+
+## API Overview
+
+### `font.getGlyph(char)` → `PenCommand[]`
+
+Returns a sequence of drawing commands for one character. Command types:
+- `PD` – Pen Down: begin a stroke at `(x, y)`.
+- `MP` – Move Pen: continue the stroke to `(x, y)`.
+- `PU` – Pen Up: lift the pen after finishing a stroke.
+
+```ts
+const cmds = font.getGlyph('A');
+// → [{ command: 'PD', x: 0, y: 0 }, { command: 'MP', x: 3, y: 9 }, ...]
+```
+
+### Multi-line text layout
+
+```ts
+const layout = font.layoutText('Hello\nWorld!', {
+    lineHeight: 1.5,
+    align: 'center',  // 'left' | 'center' | 'right'
+    letterSpacing: 1,
+});
+// → Array<{ char, x, y, commands: PenCommand[] }>
+```
+
+### SVG path output
+
+```ts
+const d = font.renderToSvg('Hello World');
+// → 'M 0.86 2.57 L 5.14 2.57 M 0 0 L 3 9 ...'
+// Use as <path d={d} fill="none" stroke="black" />
+```
+
+### HTML5 Canvas rendering
+
+```ts
+font.renderToCanvas(ctx, 'Hello', { x: 10, y: 50, strokeStyle: '#000' });
+```
+
+### Flat polylines (WebGL / Three.js / G-code / CNC)
+
+```ts
+const polylines = font.toPolylines('Hi');
+// → [ [ [0, 0], [3, 9], [6, 0] ], ... ]
+```
+
+### Text metrics
+
+```ts
+const { width, height } = font.measureText('Hello\nWorld!');
+```
+
+### Glyph lookup variants
+
+```ts
+font.getGlyphByChar('A');          // by single character
+font.getGlyphByCode('U+0041');     // by explicit codepoint prefix
+font.getGlyphByCode(0x0041);       // by numeric codepoint
+font.hasGlyph('A');                // boolean presence check
+font.listGlyphs();                 // all codepoint keys in the font
+```
+
+## Sub-path Imports (tree-shakeable)
+
+```ts
+import { parseBene }          from 'derakuma/core/parser';
+import { DerakumaFont }       from 'derakuma/core/font';
+import { flattenArc }         from 'derakuma/geometry/arc';
+import { loadFontFromUrl }    from 'derakuma/loaders/web';
+import { loadFontFromFile }   from 'derakuma/loaders/node';
+import { DerakumaLoadError }  from 'derakuma/errors';
+```
+
+## Browser `<script>` / CDN
+
+```html
+<script src="https://unpkg.com/derakuma/dist/web.global.js"></script>
+<script>
+  Derakuma.loadFontFromUrl('https://example.com/font.bene').then(font => {
+    console.log(font.getGlyph('A'));
+  });
+</script>
+```
+
+## Building
+
+```sh
+bun run build      # compile JS bundles (ESM + CJS) + TypeScript declarations
+bun run typecheck  # run tsc --noEmit
+bun run test       # run vitest
+```
 
 # License
 MIT

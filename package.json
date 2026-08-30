@@ -1,13 +1,17 @@
 {
   "name": "derakuma",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "private": false,
-  "description": "a Fontobene parser for Typescript",
+  "description": "A FontoBene stroke-font parser for TypeScript — browser, Node, Bun, Deno, and edge runtimes.",
   "keywords": [
     "fontobene",
     "vectorfont",
     "font",
-    "parser"
+    "parser",
+    "cad",
+    "svg",
+    "canvas",
+    "stroke-font"
   ],
   "homepage": "https://github.com/zeankundev/derakuma#readme",
   "bugs": {
@@ -20,25 +24,73 @@
   "license": "MIT",
   "author": "zeankun <zeanfender11@gmail.com>",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "browser": "dist/web.min.js",
-  "unpkg": "dist/web.min.js",
-  "jsdelivr": "dist/web.min.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "browser": "./dist/index.js",
+  "unpkg": "./dist/web.global.js",
+  "jsdelivr": "./dist/web.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./core/parser": {
+      "types": "./dist/core/parser.d.ts",
+      "import": "./dist/core/parser.js",
+      "require": "./dist/core/parser.cjs"
+    },
+    "./core/font": {
+      "types": "./dist/core/font.d.ts",
+      "import": "./dist/core/font.js",
+      "require": "./dist/core/font.cjs"
+    },
+    "./core/types": {
+      "types": "./dist/core/types.d.ts",
+      "import": "./dist/core/types.js",
+      "require": "./dist/core/types.cjs"
+    },
+    "./geometry/arc": {
+      "types": "./dist/geometry/arc.d.ts",
+      "import": "./dist/geometry/arc.js",
+      "require": "./dist/geometry/arc.cjs"
+    },
+    "./loaders/node": {
+      "types": "./dist/loaders/node.d.ts",
+      "import": "./dist/loaders/node.js",
+      "require": "./dist/loaders/node.cjs"
+    },
+    "./loaders/web": {
+      "types": "./dist/loaders/web.d.ts",
+      "import": "./dist/loaders/web.js",
+      "require": "./dist/loaders/web.cjs"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js",
+      "require": "./dist/errors/index.cjs"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
+    "clean": "rimraf dist",
+    "build:js": "tsup",
+    "build:dts": "tsc -p tsconfig.dts.json",
+    "build": "npm run build:js && npm run build:dts",
+    "build:watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "npm run build:node && npm run build:web",
-    "build:node": "tsc -p tsconfig.json",
-    "build:web": "tsc -p tsconfig.web.json && esbuild dist/web.js --minify --outfile=dist/web.min.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run clean && npm run build && npm run test"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "esbuild": "^0.25.12",
+    "rimraf": "^6.1.3",
+    "tsup": "^8.5.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

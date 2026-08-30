@@ -1,471 +1,107 @@
 /**
- * Codes for PenCommand
- * PD = pen down
- * PU = pen up
- * MP = move pen
+ * Derakuma – FontoBene stroke-font parser for TypeScript
+ *
+ * ## Quick Start
+ *
+ * ```ts
+ * import { Derakuma } from 'derakuma';
+ *
+ * // 1. Synchronous in-memory parse (content already loaded / decoded)
+ * const font = Derakuma.parse(rawBeneString);
+ *
+ * // 2. Load from URL (browser, Node 18+, Bun, Deno, edge runtimes)
+ * const font = await Derakuma.loadFontFromUrl('https://example.com/font.bene');
+ *
+ * // 3. Load from the local file system (Node / Bun only)
+ * const font = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
+ * // Or with an explicit encoding (e.g. UTF-16 LE):
+ * const font = await Derakuma.loadFontFromFile('./fonts/opengost.bene', 'utf-16le');
+ *
+ * // 4. Get pen commands for a glyph
+ * const cmds = font.getGlyph('A');
+ *
+ * // 5. Multi-line layout
+ * const layout = font.layoutText('Hello\nWorld!', { align: 'center' });
+ *
+ * // 6. SVG path string
+ * const d = font.renderToSvg('Hello World');
+ *
+ * // 7. Canvas 2D
+ * font.renderToCanvas(ctx, 'Hello', { x: 10, y: 50 });
+ * ```
+ *
+ * @module derakuma
  */
 
-import { createRequire } from 'node:module';
+// ---- Core types & font model -----------------------------------------------
+export type { FontMetadata, Glyph, PenCommand, LayoutTextOptions, TextMetrics, PositionedChar } from './core/types.js';
+export { DerakumaFont } from './core/font.js';
 
-export type PenCommand =
-    | { command: 'PD'; x: number; y: number }
-    | { command: 'PU'; x: number; y: number }
-    | { command: 'MP'; x: number; y: number }
+// ---- Parser (low-level) ----------------------------------------------------
+export { parseBene } from './core/parser.js';
+export type { FontData } from './core/parser.js';
 
-export enum FontLoadMethod {
-    FETCH = 'fetch',
-    FILE = 'file',
-}
+// ---- Geometry utilities (advanced / tree-shakeable) ------------------------
+export { flattenArc, flattenPolyline, computeBounds } from './geometry/arc.js';
 
-// Font metadata
-export interface FontMetadata {
-    formatVersion?: string;
-    id?: string;
-    name?: string;
-    description?: string;
-    version?: string;
-    authors: string[];
-    licenses: string[];
-    letterSpacing: number;
-    lineSpacing: number;
-    monospaceWidth?: number;
-}
+// ---- Error classes ---------------------------------------------------------
+export { DerakumaError, DerakumaLoadError, DerakumaParseError, DerakumaNotReadyError } from './errors/index.js';
 
-export interface Glyph {
-    codepoint: string;
-    char?: string;
-    polylines: Array<Array<{ x: number; y: number }>>;
-    whitespace: number;
-    minX: number;
-    maxX: number;
-}
+// ---- Loaders ---------------------------------------------------------------
+export { loadFontFromUrl, loadFontFromBuffer } from './loaders/web.js';
+export { loadFontFromFile, loadFontFromFileSync, normalizeEncoding } from './loaders/node.js';
 
-interface RawVector2 {
-    x: number;
-    y: number;
-    bulge?: number;
-}
+// ---- Convenience façade ----------------------------------------------------
 
-interface ParsedGlyph {
-    codepoint: string;
-    char?: string;
-    polylines: RawVector2[][];
-    whitespace?: number;
-}
+import { fontFromString } from './core/font.js';
+import type { DerakumaFont } from './core/font.js';
+import { loadFontFromUrl } from './loaders/web.js';
+import { loadFontFromFile } from './loaders/node.js';
 
-// Bene file specs
-const separator = '---';
-const glyphHeaderRegex = /^\[([0-9A-Fa-f]{4,6})\]\s*(.*)$/;
-const sectionRegex = /^\[(.+)\]$/;
-
-export class DerakumaParser {
-    public metadata: FontMetadata = {
-        authors: [],
-        licenses: [],
-        letterSpacing: 0,
-        lineSpacing: 9,
-    }
-    private glyphs = new Map<string, Glyph>();
-    private loadPromiseFunc: Promise<void>;
-    private fallbackGlyphCache: Glyph | null = null;
-
-    private async fetchBeneFile(url: string, method: FontLoadMethod | string, encoding: string = 'utf-8'): Promise<string> {
-        const hasFetch = typeof fetch === 'function';
-        let fetchError: Error | null = null;
-
-        if (hasFetch && method === FontLoadMethod.FETCH) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) return await response.text();
-                fetchError = new Error(`Woopsies! Failed to fetch ${url}! ${response.status} ${response.statusText}`);
-            } catch (error) {
-                fetchError = error as Error;
-            }
-            
-            // Throw the fetch error if the fetch attempt failed
-            throw fetchError;
-        } 
-        
-        if (method === FontLoadMethod.FILE) {
-            return this.fetchBeneFileSync(url, encoding);
-        }
-
-        // Fallback if environment setup is wrong or an unsupported method is passed
-        throw new Error(`Unsupported method or missing environment capabilities for ${url}`);
-    }
-
-    private fetchBeneFileSync(url: string, encoding: string = 'utf-8'): string {
-        let fsModule: typeof import('fs');
-        try {
-            if (typeof require === 'function') {
-                fsModule = require('fs');
-            } else {
-                const req = createRequire(process.cwd() + '/');
-                fsModule = req('fs');
-            }
-        } catch (error) {
-            throw new Error(`Synchronous file reads are unavailable in this environment for ${url}`);
-        }
-
-        try {
-            return fsModule.readFileSync(url, encoding as BufferEncoding);
-        } catch (error) {
-            throw new Error(`Woopsies! Failed to read file ${url}! ${(error as Error).message}`);
-        }
-    }
-
-    private parsePolylineLine(line: string): RawVector2[] {
-        const tokens = line.split(';').map((t) => t.trim()).filter((t) => t.length > 0);
-        const points: RawVector2[] = [];
-        for (const token of tokens) {
-            const parts = token.split(',').map((p) => p.trim());
-            const x = parseFloat(parts[0]);
-            const y = parseFloat(parts[1]);
-            if (Number.isNaN(x) || Number.isNaN(y)) continue;
-            const point: RawVector2 = { x, y };
-            if (parts.length >= 3) {
-            const bulge = parseFloat(parts[2]);
-            if (!Number.isNaN(bulge) && bulge !== 0) point.bulge = bulge;
-            }
-            points.push(point);
-        }
-        return points;
-    }
-
-    private flattenArc(p0: { x: number; y: number }, p1: { x: number; y: number }, bulge: number): Array<{ x: number; y: number }> {
-        const theta = (bulge * Math.PI) / 9;
-        const dx = p1.x - p0.x;
-        const dy = p1.y - p0.y;
-        const chordLen = Math.hypot(dx, dy);
-
-        if (Math.abs(theta) < 1e-9 || chordLen < 1e-9) return [{ x: p1.x, y: p1.y }];
-
-        const halfTheta = theta / 2;
-        const r = chordLen / (2 * Math.sin(halfTheta));
-        const midX = (p0.x + p1.x) / 2;
-        const midY = (p0.y + p1.y) / 2;
-        // Unit vector perpendicular to the chord (chord rotated +90deg).
-        const perpX = -dy / chordLen;
-        const perpY = dx / chordLen;
-        const H = r * Math.cos(halfTheta);
-        const cx = midX + perpX * H;
-        const cy = midY + perpY * H;
-        const radius = Math.hypot(p0.x - cx, p0.y - cy);
-        const angle0 = Math.atan2(p0.y - cy, p0.x - cx);
-
-        const segmentCount = Math.max(2, Math.ceil(Math.abs(theta) / (Math.PI / 18))); // ~10deg per segment
-        const pts: Array<{ x: number; y: number }> = [];
-        for (let s = 1; s <= segmentCount; s++) {
-            const t = s / segmentCount;
-            if (s === segmentCount) {
-            pts.push({ x: p1.x, y: p1.y }); // snap the last point exactly to avoid float drift
-            break;
-            }
-            const angle = angle0 + theta * t;
-            pts.push({ x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
-        }
-        return pts;
-    }
-
-    private flattenPolyline(polyline: RawVector2[]): Array<{ x: number; y: number }> {
-        const result: Array<{ x: number; y: number }> = [];
-        for (let idx = 0; idx < polyline.length; idx++) {
-            const p = polyline[idx];
-            if (idx === 0) {
-            result.push({ x: p.x, y: p.y });
-            continue;
-            }
-            const prev = polyline[idx - 1];
-            if (prev.bulge) {
-            result.push(...this.flattenArc({ x: prev.x, y: prev.y }, { x: p.x, y: p.y }, prev.bulge));
-            } else {
-            result.push({ x: p.x, y: p.y });
-            }
-        }
-        return result;
-    }
-
-    private resolveGlyph(parsed: ParsedGlyph): Glyph {
-        const polylines = parsed.polylines.map(this.flattenPolyline.bind(this));
-        let minX = Infinity;
-        let maxX = -Infinity;
-        for (const pl of polylines) {
-            for (const pt of pl) {
-            if (pt.x < minX) minX = pt.x;
-            if (pt.x > maxX) maxX = pt.x;
-            }
-        }
-        if (!Number.isFinite(minX)) {
-            minX = 0;
-            maxX = 0;
-        }
-        return {
-            codepoint: parsed.codepoint,
-            char: parsed.char,
-            polylines,
-            whitespace: parsed.whitespace ?? 0,
-            minX,
-            maxX,
-        };
-    }
-
-    private buildFallbackGlyph(): Glyph {
-        if (this.fallbackGlyphCache) return this.fallbackGlyphCache;
-
-        const height = this.metadata.lineSpacing > 0 ? this.metadata.lineSpacing : 9;
-        const width = this.metadata.monospaceWidth ?? height * 0.6;
-
-        const inset = Math.min(width, height) * 0.1;
-        const x0 = inset;
-        const x1 = Math.max(width - inset, x0 + 0.001);
-        const y0 = inset;
-        const y1 = Math.max(height - inset, y0 + 0.001);
-
-        const box: RawVector2[] = [
-            { x: x0, y: y0 },
-            { x: x1, y: y0 },
-            { x: x1, y: y1 },
-            { x: x0, y: y1 },
-            { x: x0, y: y0 },
-        ];
-        const crossA: RawVector2[] = [{ x: x0, y: y0 }, { x: x1, y: y1 }];
-        const crossB: RawVector2[] = [{ x: x0, y: y1 }, { x: x1, y: y0 }];
-
-        this.fallbackGlyphCache = this.resolveGlyph({
-            codepoint: 'NOTDEF',
-            char: undefined,
-            polylines: [box, crossA, crossB],
-            whitespace: 1,
-        });
-        return this.fallbackGlyphCache;
-    }
-
-    private applyHeader(header: Record<string, string[]>): void {
-        const get = (k: string) => header[k]?.[0];
-        this.metadata = {
-        formatVersion: get('format.format_version'),
-        id: get('font.id'),
-        name: get('font.name'),
-        description: get('font.description'),
-        version: get('font.version'),
-        authors: header['font.author'] ?? [],
-        licenses: header['font.license'] ?? [],
-        letterSpacing: parseFloat(get('font.letter_spacing') ?? '0') || 0,
-        lineSpacing: get('font.line_spacing') !== undefined ? parseFloat(get('font.line_spacing')!) : 9,
-        monospaceWidth: get('font.monospace_width') !== undefined ? parseFloat(get('font.monospace_width')!) : undefined,
-        };
-    }
-
-    private parseBene(rawContent: string): void {
-        this.fallbackGlyphCache = null;
-        const lines = rawContent.split(/\r\n|\r|\n/);
-        let i = 0;
-        const header: Record<string, string[]> = {};
-        let currentSection: string | null = null;
-
-        for (; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line == separator) {
-                i++;
-                break;
-            }
-            if (line === '' || line.startsWith('#')) continue;
-
-            const sectionMatch = line.match(sectionRegex);
-            if (sectionMatch) {
-                currentSection = sectionMatch[1].trim();
-                continue;
-            }
-
-            const eq = line.indexOf('=');
-            if (eq === -1) continue;
-            const key = `${currentSection}.${line.slice(0, eq).trim()}`;
-            const value = line.slice(eq + 1).trim();
-            (header[key] ??= []).push(value);
-        }
-        this.applyHeader(header);
-
-        let current: ParsedGlyph | null = null;
-        const commit = () => {
-            if (!current) return;
-            this.glyphs.set(current.codepoint, this.resolveGlyph(current));
-        };
-        for (; i < lines.length; i++) {
-            const rawLine = lines[i];
-            const line = rawLine.trim();
-            if (line === '' || line.startsWith('#')) continue;
-            const glyphHeader = line.match(glyphHeaderRegex);
-            if (glyphHeader) {
-                commit();
-                current = {
-                    codepoint: glyphHeader[1].toUpperCase(),
-                    char: glyphHeader[2] ? glyphHeader[2].trim() || undefined  : undefined,
-                    polylines: [],  
-                };
-                continue;
-            }
-            if (!current) continue;
-            if (line.startsWith('@')) {
-                const referenceKey = line.slice(1).trim().toUpperCase();
-                const reference = this.glyphs.get(referenceKey);
-                if (reference) {
-                    for (const polyline of reference.polylines) {
-                        current.polylines.push(polyline.map((point) => ({x: point.x, y: point.y})));
-                    }
-                    current.whitespace = reference.whitespace;
-                }
-                continue;
-            }
-            if (line.startsWith('~')) {
-                const value = parseFloat(line.slice(1).trim());
-                current.whitespace = Number.isNaN(value) ? 0 : value;
-                continue;
-            }
-            const points = this.parsePolylineLine(line);
-            if (points.length) current.polylines.push(points);
-        }
-        commit(); // the last glyph in the file never hits the "next header" branch above
-        this.isInitialized = true;
-    }
-
-    private async load(source: string, loadMethod: FontLoadMethod | string, encoding: string): Promise<void> {
-        const rawContent = await this.fetchBeneFile(source, loadMethod, encoding);
-        this.parseBene(rawContent);
-    }
-
-    private convertToCodepointKey(input: string | number): string {
-        let cp: number;
-        if (typeof input === 'number') {
-            cp = input;
-        } else if (Array.from(input).length === 1) {
-            // Exactly one Unicode code point (handles surrogate pairs correctly).
-            cp = input.codePointAt(0)!;
-        } else if (/^[0-9A-Fa-f]{4,6}$/.test(input)) {
-            // A literal hex codepoint string, e.g. "0041".
-            return input.toUpperCase();
-        } else {
-            // Best effort: use the first code point.
-            cp = input.codePointAt(0) ?? 0;
-        }
-        let hex = cp.toString(16).toUpperCase();
-        if (hex.length < 4) hex = hex.padStart(4, '0');
-        return hex;
-    }
-
-    private glyphToPenCommands(glyph: Glyph): PenCommand[] {
-        const commands: PenCommand[] = [];
-        for (const pl of glyph.polylines) {
-            if (pl.length === 0) continue;
-            commands.push({ command: 'PD', x: pl[0].x, y: pl[0].y });
-            for (let i = 1; i < pl.length; i++) {
-            commands.push({ command: 'MP', x: pl[i].x, y: pl[i].y });
-            }
-            const last = pl[pl.length - 1];
-            commands.push({ command: 'PU', x: last.x, y: last.y });
-        }
-        return commands;
-    }
-
-    private isInitialized = false;
+/**
+ * Top-level namespace / factory for Derakuma.
+ *
+ * Use these static methods instead of `new DerakumaParser(...)` to avoid the
+ * async-constructor race hazard described in the pain-point analysis.
+ */
+export const Derakuma = {
+    /**
+     * Synchronously parse an already-decoded `.bene` string into a font object.
+     *
+     * Use this when you already have the file content in memory — for example
+     * from a Vite `?raw` import, a WebWorker message, a file input read, etc.
+     *
+     * ```ts
+     * import rawFont from './fonts/newstroke.bene?raw'; // Vite
+     * const font = Derakuma.parse(rawFont);
+     * ```
+     */
+    parse(content: string): DerakumaFont {
+        return fontFromString(content);
+    },
 
     /**
-     * @param source A path to a .bene file
-     * @param loadMethod (optional) The method to load the .bene file. Defaults to 'fetch'. For local Node/Bun, use 'file'.
-     * @param encoding The encoding to use when reading the .bene file. Defaults to 'utf-8'.
+     * Load a `.bene` font from a URL using the global `fetch` API.
+     *
+     * Works in browsers, Node 18+, Bun, Deno, and edge runtimes.
+     *
+     * ```ts
+     * const font = await Derakuma.loadFontFromUrl('https://example.com/font.bene');
+     * ```
      */
-    constructor(
-        source: string, 
-        loadMethod: FontLoadMethod | string = FontLoadMethod.FETCH,
-        encoding: string = 'utf-8'
-    ) {
-        if (loadMethod === FontLoadMethod.FILE) {
-            this.parseBene(this.fetchBeneFileSync(source, encoding));
-            this.loadPromiseFunc = Promise.resolve();
-        } else {
-            // fetch() has no synchronous equivalent, so remote sources still load async.
-            this.loadPromiseFunc = this.load(source, loadMethod, encoding);
-        }
-    }
-    
-    ready(): Promise<void> {
-        return this.loadPromiseFunc;
-    }
+    loadFontFromUrl,
 
     /**
-     * @param character Either a single character (e.g. "A"), a Unicode codepoint (e.g. "0041"), or a hex codepoint (e.g. 0x41).
-     * @returns Pen commands to be used. One PD/PU pair per glyph. If the character isn't in the font,
-     * this draws U+FFFD (if defined) or a synthesized "missing glyph" box instead of coming back empty.
+     * Load a `.bene` font from the local file system.
+     *
+     * Only available in Node.js, Bun, and Deno environments.
+     *
+     * ```ts
+     * const font = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
+     * const font = await Derakuma.loadFontFromFile('./fonts/opengost.bene', 'utf-16le');
+     * ```
      */
-    getGlyph(character: string | number): PenCommand[] {
-        const glyph = this.getGlyphData(character);
-        if (!glyph) return [];
-        return this.glyphToPenCommands(glyph);
-    }
+    loadFontFromFile,
+} as const;
 
-    /**
-     * Same as {@link getGlyph} but actually returns the resolved glyph data rather than pen commands.
-     * @param useFallback (default true) If the character isn't found, it will return U+FFFD.
-     * If U+FFFD isn't defined, it will return a synthesized "missing glyph" box. If false, it will return undefined instead.
-     * @returns The glyph data for the character, or undefined if not found and useFallback is false.
-     */
-    getGlyphData(character: string | number, useFallback: boolean = true): Glyph | undefined {
-        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
-        const key = this.convertToCodepointKey(character);
-        let glyph = this.glyphs.get(key);
-        if (!glyph && key !== 'FFFD') {
-            glyph = this.glyphs.get('FFFD');
-        }
-        if (!glyph && useFallback) {
-            glyph = this.buildFallbackGlyph();
-        }
-        return glyph;
-    }
-
-    /**
-     * Checks whether a character has an actual glyph defined in the font (or a defined U+FFFD
-     * replacement glyph), ignoring the synthesized fallback box.
-     */
-    hasGlyph(character: string | number): boolean {
-        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
-        const key = this.convertToCodepointKey(character);
-        return this.glyphs.has(key) || this.glyphs.has('FFFD');
-    }
-
-    /**
-     * @returns Horizontal advance (in `Number`) to the next glyph's origin (the rightmost or `monospaceWidth` if defined, plus `letterSpacing`).
-     */
-    getAdvance(character: string | number): number {
-        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
-        const glyph = this.getGlyphData(character);
-        const width = this.metadata.monospaceWidth ?? (glyph ? Math.max(glyph.maxX, 0) : 0);
-        const trailing = glyph?.whitespace ?? 0;
-        return width + trailing + this.metadata.letterSpacing;
-    }
-
-    /**
-     * @param text A whole sentence (can be separated with spaces)
-     * @returns An array of `char`, `x` and their respective `commands`
-     */
-    getSentenceCommand(text: string): Array<{ char: string; x: number; commands: PenCommand[] }> {
-        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
-        const result: Array<{ char: string; x: number; commands: PenCommand[] }> = [];
-        let cursor = 0;
-        for (const char of text) {
-            const commands = this.getGlyph(char);
-            const translated = commands.map((c) => ({ ...c, x: c.x + cursor }));
-            result.push({ char, x: cursor, commands: translated });
-            cursor += this.getAdvance(char);
-        }
-        return result;
-    }
-
-    /**
-     * List all available glyphs you can use
-     */
-    listGlyphs(): string[] {
-        if (!this.isInitialized) throw new Error('Derakuma is not initialized yet!');
-        return Array.from(this.glyphs.keys());
-    }
-}
-
-export default DerakumaParser;
+export default Derakuma;

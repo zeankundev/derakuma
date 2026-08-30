@@ -301,13 +301,17 @@ derakuma/
 
 ```ts
 import { Derakuma } from 'derakuma';
+import * as fs from 'fs';
 
 // 1. Synchronous In-Memory Parsing (Instant, No Async Race Conditions)
+// This should be done when the file content is already known (e.g. already UTF-8 decoded, or whatever it is)
 const font = Derakuma.parse(fontFileTextContent);
 
+const fontBuffer: Uint8Array = fs.readFileSync('./fonts/newstroke.bene');
+
 // 2. Static Async Loaders (Node filesystem or Browser fetch)
-const fontFromUrl  = await Derakuma.fromUrl('https://example.com/font.bene');
-const fontFromFile = await Derakuma.fromFile('./fonts/newstroke.bene');
+const fontFromUrl  = await Derakuma.loadFontFromUrl('https://example.com/font.bene');
+const fontFromFile = await Derakuma.loadFontFromFile('./fonts/newstroke.bene');
 
 // 3. Simple & Safe Glyph Queries
 const glyph = font.getGlyph('A');
@@ -321,8 +325,10 @@ const layout = font.layoutText('Hello\nWorld!', {
     align: 'center', // 'left' | 'center' | 'right'
 });
 
+console.log(layout); // <- Should still output raw pen commands (aka PenCommand[])
+
 // 5. Ready-to-Use High-Level Exporters
-const svgPathData = font.toSVGPath('Hello World'); 
+const svgPathData = font.renderToSvg('Hello World'); 
 // Output: "M 0.86 2.57 L 5.14 2.57 M 0 0 L 3 9 L 6 0 ..."
 
 font.renderToCanvas(ctx, 'Hello World', { x: 10, y: 50, strokeStyle: '#000' });
