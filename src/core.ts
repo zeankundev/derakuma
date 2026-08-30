@@ -5,7 +5,11 @@
  * MP = move pen
  */
 
-export type PenCommand =
+/**
+ * Internal-only duplicate of the public `PenCommand` type (see `types.ts`).
+ * Not exported, to avoid colliding with the public symbol of the same name.
+ */
+type PenCommand =
     | { command: 'PD'; x: number; y: number }
     | { command: 'PU'; x: number; y: number }
     | { command: 'MP'; x: number; y: number }
@@ -15,7 +19,11 @@ export enum FontLoadMethod {
     FILE = 'file',
 }
 
-export interface FontMetadata {
+/**
+ * Internal-only duplicate of the public `FontMetadata` interface (see `types.ts`).
+ * Not exported, to avoid colliding with the public symbol of the same name.
+ */
+interface FontMetadata {
     formatVersion?: string;
     id?: string;
     name?: string;
@@ -28,7 +36,11 @@ export interface FontMetadata {
     monospaceWidth?: number;
 }
 
-export interface Glyph {
+/**
+ * Internal-only duplicate of the public `Glyph` interface (see `types.ts`).
+ * Not exported, to avoid colliding with the public symbol of the same name.
+ */
+interface Glyph {
     codepoint: string;
     char?: string;
     polylines: Array<Array<{ x: number; y: number }>>;
@@ -58,6 +70,11 @@ const separator = '---';
 const glyphHeaderRegex = /^\[([0-9A-Fa-f]{4,6})\]\s*(.*)$/;
 const sectionRegex = /^\[(.+)\]$/;
 
+/**
+ * @deprecated Internal legacy base parser kept for backward compatibility.
+ * Prefer the public `Derakuma` and `DerakumaFont` API exported from `src/index.ts`.
+ * @internal
+ */
 export abstract class DerakumaCore {
     public metadata: FontMetadata = {
         authors: [],

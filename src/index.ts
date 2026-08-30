@@ -30,7 +30,6 @@
  * font.renderToCanvas(ctx, 'Hello', { x: 10, y: 50 });
  * ```
  *
- * @module derakuma
  */
 
 // ---- Core types & font model -----------------------------------------------
