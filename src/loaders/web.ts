@@ -12,6 +12,22 @@ import { fontFromString } from '../core/font.js';
 import type { DerakumaFont } from '../core/font.js';
 import { ParserSettings } from '../core/types.js';
 
+declare global {
+    var loadFontFromUrl: (
+        url: string,
+        settings?: ParserSettings,
+        _encoding?: string
+    ) => Promise<DerakumaFont>;
+    
+    var loadFontFromBuffer: (
+        buffer: Uint8Array | ArrayBuffer,
+        encoding?: string,
+        settings?: ParserSettings
+    ) => DerakumaFont;
+
+    var parse: (content: string, settings?: ParserSettings) => DerakumaFont;
+}
+
 /**
  * Load a `.bene` font from a URL using the `fetch` API.
  *
@@ -72,3 +88,7 @@ export function loadFontFromBuffer(
     const text = new TextDecoder(encoding).decode(buffer);
     return fontFromString(text, settings);
 }
+
+globalThis.loadFontFromUrl = loadFontFromUrl;
+globalThis.loadFontFromBuffer = loadFontFromBuffer;
+globalThis.parse = fontFromString;

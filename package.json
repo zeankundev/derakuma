@@ -1,6 +1,6 @@
 {
   "name": "derakuma",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": false,
   "description": "A FontoBene stroke-font parser for TypeScript — browser, Node, Bun, Deno, and edge runtimes.",
   "keywords": [
