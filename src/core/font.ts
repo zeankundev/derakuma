@@ -71,6 +71,36 @@ function buildFallbackGlyph(metadata: FontMetadata): Glyph {
     return { codepoint: 'NOTDEF', char: undefined, polylines, whitespace: 0, minX, maxX };
 }
 
+/**
+ * Returns `true` if `hexKey` (an uppercase hex codepoint string, e.g. `"0020"`)
+ * decodes to a Unicode whitespace character (space, tab, nbsp, em-space, etc).
+ */
+function isWhitespaceCodepoint(hexKey: string): boolean {
+    const cp = parseInt(hexKey, 16);
+    if (Number.isNaN(cp)) return false;
+    try {
+        return /\s/u.test(String.fromCodePoint(cp));
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Synthesise an invisible "blank" glyph for a whitespace codepoint that the
+ * font doesn't explicitly define. Unlike the `NOTDEF` tofu fallback, this
+ * draws nothing — it just advances the cursor — since a missing space glyph
+ * means "no ink here", not "unknown character".
+ *
+ * @param metadata - Font metadata used to size the advance width.
+ * @param hexKey - The uppercase hex codepoint string this glyph stands in for.
+ * @returns A synthesised, strokeless `Glyph`.
+ */
+function buildBlankGlyph(metadata: FontMetadata, hexKey: string): Glyph {
+    const height = metadata.lineSpacing > 0 ? metadata.lineSpacing : 9;
+    const width = metadata.monospaceWidth ?? height * 0.5;
+    return { codepoint: hexKey, char: undefined, polylines: [], whitespace: width, minX: 0, maxX: 0 };
+}
+
 // ---------------------------------------------------------------------------
 // Codepoint normalisation
 // ---------------------------------------------------------------------------
@@ -94,17 +124,22 @@ function convertToCodepointKey(input: string | number): string {
     if (typeof input === 'number') {
         cp = input;
     } else {
-        const trimmed = input.trim();
-
-        if (Array.from(trimmed).length === 1) {
+        // Check the single-character case BEFORE trimming: trimming a lone
+        // whitespace character (e.g. " ") would strip it down to "", losing
+        // the character entirely and misresolving it to codepoint 0 (NUL).
+        if (Array.from(input).length === 1) {
             // Single Unicode character
-            cp = trimmed.codePointAt(0)!;
-        } else if (/^(?:U\+|0x)[0-9A-Fa-f]{1,6}$/i.test(trimmed)) {
-            // Explicit hex prefix: "U+0041" or "0x0041"
-            cp = parseInt(trimmed.replace(/^(?:U\+|0x)/i, ''), 16);
+            cp = input.codePointAt(0)!;
         } else {
-            // Fallback: treat the first Unicode code-point of the string
-            cp = trimmed.codePointAt(0) ?? 0;
+            const trimmed = input.trim();
+
+            if (/^(?:U\+|0x)[0-9A-Fa-f]{1,6}$/i.test(trimmed)) {
+                // Explicit hex prefix: "U+0041" or "0x0041"
+                cp = parseInt(trimmed.replace(/^(?:U\+|0x)/i, ''), 16);
+            } else {
+                // Fallback: treat the first Unicode code-point of the string
+                cp = trimmed.codePointAt(0) ?? 0;
+            }
         }
     }
 
@@ -153,6 +188,7 @@ export class DerakumaFont {
 
     private readonly glyphs: Map<string, Glyph>;
     private fallbackGlyphCache: Glyph | null = null;
+    private readonly blankGlyphCache: Map<string, Glyph> = new Map();
 
     /** @internal – use `Derakuma.parse()` or `Derakuma.load*()` instead. */
     constructor(metadata: FontMetadata, glyphs: Map<string, Glyph>) {
@@ -181,6 +217,7 @@ export class DerakumaFont {
 
     private _lookupHexKey(hexKey: string, useFallback: boolean = true): Glyph | undefined {
         let glyph = this.glyphs.get(hexKey);
+        if (!glyph && isWhitespaceCodepoint(hexKey)) glyph = this._blankGlyph(hexKey);
         if (!glyph && hexKey !== 'FFFD') glyph = this.glyphs.get('FFFD');
         if (!glyph && useFallback) glyph = this._fallbackGlyph();
         return glyph;
@@ -454,6 +491,22 @@ export class DerakumaFont {
             this.fallbackGlyphCache = buildFallbackGlyph(this.metadata);
         }
         return this.fallbackGlyphCache;
+    }
+
+    /**
+     * Return (and cache) a synthesised invisible glyph standing in for a
+     * whitespace codepoint the font doesn't explicitly define.
+     *
+     * @param hexKey - The uppercase hex codepoint string, e.g. `"0020"`.
+     * @returns The lazily-built, memoised blank `Glyph`.
+     */
+    private _blankGlyph(hexKey: string): Glyph {
+        let glyph = this.blankGlyphCache.get(hexKey);
+        if (!glyph) {
+            glyph = buildBlankGlyph(this.metadata, hexKey);
+            this.blankGlyphCache.set(hexKey, glyph);
+        }
+        return glyph;
     }
 }
 
