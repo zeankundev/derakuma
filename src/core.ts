@@ -301,8 +301,9 @@ export abstract class _DEPRECATED_DoNotUse_DerakumaLegacy {
         this.parsedGlyphs.clear();
         const lines = rawContent.split(/\r\n|\r|\n/);
         let i = 0;
-        const header: Record<string, string[]> = {};
+        const header: Record<string, string[]> = Object.create(null) as Record<string, string[]>;
         let currentSection: string | null = null;
+        let sawValidHeader = false;
 
         for (; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -314,14 +315,24 @@ export abstract class _DEPRECATED_DoNotUse_DerakumaLegacy {
 
             const sectionMatch = line.match(sectionRegex);
             if (sectionMatch) {
-                currentSection = sectionMatch[1].trim();
+                const sectionName = sectionMatch[1].trim();
+                if (sectionName === '__proto__' || sectionName === 'constructor' || sectionName === 'prototype') {
+                    currentSection = null;
+                    continue;
+                }
+                currentSection = sectionName;
                 continue;
             }
 
+            if (currentSection === null) continue;
+
             const eq = line.indexOf('=');
             if (eq === -1) continue;
-            const key = `${currentSection}.${line.slice(0, eq).trim()}`;
+            const rawKey = line.slice(0, eq).trim();
+            if (rawKey === '__proto__' || rawKey === 'constructor' || rawKey === 'prototype') continue;
+            const key = `${currentSection}.${rawKey}`;
             const value = line.slice(eq + 1).trim();
+            sawValidHeader = true;
             (header[key] ??= []).push(value);
         }
         this.applyHeader(header);

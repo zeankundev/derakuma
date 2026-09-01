@@ -151,9 +151,10 @@ function resolveGlyph(
 export function parseBene(rawContent: string, settings: ParserSettings = { violent: false }): FontData {
     const lines = rawContent.split(/\r\n|\r|\n/);
     let i = 0;
-    const header: Record<string, string[]> = {};
+    const header: Record<string, string[]> = Object.create(null) as Record<string, string[]>;
     let currentSection: string | null = null;
     let sawSeparator: boolean = false;
+    let sawValidHeader: boolean = false;
 
     // --- Pass 1a: Parse header (up to the first `---` separator) ---
     for (; i < lines.length; i++) {
@@ -163,14 +164,24 @@ export function parseBene(rawContent: string, settings: ParserSettings = { viole
 
         const sectionMatch = line.match(SECTION_RE);
         if (sectionMatch) {
-            currentSection = sectionMatch[1].trim();
+            const sectionName = sectionMatch[1].trim();
+            if (sectionName === '__proto__' || sectionName === 'constructor' || sectionName === 'prototype') {
+                currentSection = null;
+                continue;
+            }
+            currentSection = sectionName;
             continue;
         }
 
+        if (currentSection === null) continue;
+
         const eq = line.indexOf('=');
         if (eq === -1) continue;
-        const key = `${currentSection}.${line.slice(0, eq).trim()}`;
+        const rawKey = line.slice(0, eq).trim();
+        if (rawKey === '__proto__' || rawKey === 'constructor' || rawKey === 'prototype') continue;
+        const key = `${currentSection}.${rawKey}`;
         const value = line.slice(eq + 1).trim();
+        sawValidHeader = true;
         (header[key] ??= []).push(value);
     }
 
@@ -179,13 +190,6 @@ export function parseBene(rawContent: string, settings: ParserSettings = { viole
     }
 
     const metadata = applyHeader(header);
-
-    if (metadata.formatVersion === undefined) {
-        throw new DerakumaParseError('Missing required [format] format_version');
-    }
-    if (!FORMAT_VERSION_RE.test(metadata.formatVersion)) {
-        throw new DerakumaParseError(`Invalid format_version "${metadata.formatVersion}"`);
-    }
 
     // --- Pass 1b: Parse all glyph blocks into `ParsedGlyph` structures ---
     const parsedGlyphs = new Map<string, ParsedGlyph>();
@@ -230,6 +234,13 @@ export function parseBene(rawContent: string, settings: ParserSettings = { viole
         }
     }
     commit();
+
+    if (metadata.formatVersion === undefined && (sawValidHeader || parsedGlyphs.size > 0)) {
+        throw new DerakumaParseError('Missing required [format] format_version');
+    }
+    if (metadata.formatVersion !== undefined && !FORMAT_VERSION_RE.test(metadata.formatVersion)) {
+        throw new DerakumaParseError(`Invalid format_version "${metadata.formatVersion}"`);
+    }
 
     // --- Pass 2: Resolve all references (including forward references) ---
     const glyphs = new Map<string, Glyph>();

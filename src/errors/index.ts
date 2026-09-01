@@ -21,12 +21,14 @@ export class DerakumaError extends Error {
 export class DerakumaLoadError extends DerakumaError {
     public readonly uri: string;
     public readonly statusCode?: number;
+    public readonly status?: number;
 
     constructor(uri: string, detail: string, statusCode?: number) {
         super(`Failed to load font from "${uri}": ${detail}`);
         this.name = 'DerakumaLoadError';
         this.uri = uri;
         this.statusCode = statusCode;
+        this.status = statusCode;
         Object.setPrototypeOf(this, new.target.prototype);
     }
 }
